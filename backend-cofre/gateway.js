@@ -2,7 +2,7 @@ function doPost(e) {
   try {
     var req = JSON.parse(e.postData.contents);
 
-    // 1. Reconstituir db.produtos a partir da matriz 2D da TGFPRO (ignora cabeçalho)
+    // 1. Reconstituir db.produtos (ignora cabeçalho)
     var mapPro = {};
     for (var i = 1; i < req.dadosPro.length; i++) {
       var row = req.dadosPro[i];
@@ -24,7 +24,7 @@ function doPost(e) {
       };
     }
 
-    // 2. Reconstituir db.kits a partir da matriz 2D da TGFKIT (ignora cabeçalho)
+    // 2. Reconstituir db.kits (ignora cabeçalho)
     var mapKit = {};
     for (var j = 1; j < req.dadosKit.length; j++) {
       var rowKit = req.dadosKit[j];
@@ -39,8 +39,7 @@ function doPost(e) {
       });
     }
 
-    // 3. Reconstituir db.config a partir do JSON fiscal do UserProperties
-    // pisCofins é a soma das alíquotas granulares; tomarCredito é convertido para boolean
+    // 3. Reconstituir db.config
     var db = {
       config: {
         reputacao:        req.config.reputacao || 'Verde',
@@ -57,88 +56,94 @@ function doPost(e) {
       kits:     mapKit
     };
 
-    // 4. Loop de Orquestração (replica processarPrecificacaoEmMassa sem SpreadsheetApp)
-    var dadosAds = req.dadosAds.slice(1); // ignora o cabeçalho
-    var resultadosPrecoFinal = [];
+    var dadosAnuncios = req.dadosAnuncios.slice(1); // ignora o cabeçalho
+    var resultadosPreco  = [];
     var resultadosVuncom = [];
 
-    for (var k = 0; k < dadosAds.length; k++) {
-      var linha = dadosAds[k];
+    // 4a. Branch MLB
+    // Mapeamento TGFMLB: A=ID, B=SKU, C=QTD, D=ForcarFrete, E=TaxaCategoria,
+    //                    F=TipoMargem, G=MargemCustom, H=AlqDestino, I=FecopDestino
+    if (req.canalAlvo === "MLB") {
+      for (var k = 0; k < dadosAnuncios.length; k++) {
+        var l = dadosAnuncios[k];
+        var idAnuncio         = l[0];
+        var skuAnunciado      = l[1];
+        var qtdNoAnuncio      = parseFloat(l[2]) || 1;
+        var forcarFreteRapido = (String(l[3]).trim().toUpperCase() === "SIM");
+        var taxaCategoriaML   = parseFloat(l[4]) || 0;
+        var tipoMargem        = l[5];
+        var margemCustomizada = parseFloat(l[6]) || 0;
+        var alqDestino        = parseFloat(l[7]) || 0;
+        var fecopDestino      = parseFloat(l[8]) || 0;
 
-      var skuAnunciado    = linha[1];
-      var qtdNoAnuncio    = parseFloat(linha[2]) || 1;
-      var taxaCategoriaML = parseFloat(linha[4]) || 0;
-      var tipoMargem      = linha[5];
-      var margemCustomizada = parseFloat(linha[6]) || 0;
-      var alqDestino      = parseFloat(linha[7]) || 0;
-      var fecopDestino    = parseFloat(linha[8]) || 0;
-      var forcarFreteRapido = (String(linha[9]).trim().toUpperCase() === "SIM");
-      var canalVenda      = String(linha[10]).trim();
-      var flagCampanha    = String(linha[11]).trim().toUpperCase();
-      var taxaCampanhaShopee = (flagCampanha === "SIM") ? 0.025 : 0;
+        if (!skuAnunciado) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
+          continue;
+        }
 
-      if (!skuAnunciado) {
-        resultadosPrecoFinal.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
-        continue;
-      }
+        var bloco = construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCustomizada, "Mercado Livre", db);
+        if (!bloco) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", "404: SKU não encontrado na TGFPRO."]);
+          continue;
+        }
 
-      var bloco = construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCustomizada, canalVenda, db);
+        var d = calcularPrecoMLB(bloco, db.config, taxaCategoriaML, forcarFreteRapido, alqDestino, fecopDestino);
+        if (!d.sucesso) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", d.feedback]);
+          continue;
+        }
 
-      if (!bloco) {
-        resultadosPrecoFinal.push(["", "", "", "", "", "", "", "", "", "", "", "", "404: SKU componente não encontrado no catálogo (TGFPRO)."]);
-        continue;
-      }
-
-      var d;
-      if (canalVenda === "Shopee") {
-        d = calcularPrecoSHP(bloco, db.config, alqDestino, fecopDestino, taxaCampanhaShopee);
-      } else {
-        d = calcularPrecoMLB(bloco, db.config, taxaCategoriaML, forcarFreteRapido, alqDestino, fecopDestino);
-      }
-
-      if (!d.sucesso) {
-        resultadosPrecoFinal.push(["", "", "", "", "", "", "", "", "", "", "", "", d.feedback]);
-        continue;
-      }
-
-      resultadosPrecoFinal.push([
-        d.preco, d.custo, d.comissao, d.frete, d.icms, d.difal,
-        d.fecop, d.pisCofins, d.ipi, d.irpj, d.csll, d.margem, d.feedback
-      ]);
-
-      // Rateio e explosão para TGF_VUNCOM
-      var idAnuncio = linha[0];
-      var valorAlvoTotal = 0;
-      for (var v = 0; v < bloco.origemICMSArray.length; v++) {
-        valorAlvoTotal += bloco.origemICMSArray[v].valorAlvoAbsoluto;
-      }
-
-      for (var c = 0; c < bloco.origemICMSArray.length; c++) {
-        var comp = bloco.origemICMSArray[c];
-        var proporcao    = comp.valorAlvoAbsoluto / valorAlvoTotal;
-        var vlrFreteRateio = d.frete * proporcao;
-        var vlrProdRateio  = (d.preco - d.frete) * proporcao;
-        var vlrProdReal    = vlrProdRateio / (1 + comp.ipi);
-        var vlrIpi         = vlrProdRateio - vlrProdReal;
-        var vlrUniNfe      = vlrProdReal / comp.qtdComponente;
-
-        resultadosVuncom.push([
-          idAnuncio,
-          skuAnunciado,
-          comp.skuComponente,
-          comp.qtdComponente,
-          vlrUniNfe,
-          vlrProdReal,
-          vlrFreteRateio,
-          vlrIpi
+        resultadosPreco.push([
+          d.preco, d.custo, d.comissao, d.frete, d.icms, d.difal,
+          d.fecop, d.pisCofins, d.ipi, d.irpj, d.csll, d.margem, d.feedback
         ]);
+        _explodirVuncom(idAnuncio, skuAnunciado, bloco, d, resultadosVuncom);
+      }
+
+    // 4b. Branch SHP
+    // Mapeamento TGFSHP: A=ID, B=SKU, C=QTD, D=FlagCampanha,
+    //                    E=TipoMargem, F=MargemCustom, G=AlqDestino, H=FecopDestino
+    } else if (req.canalAlvo === "SHP") {
+      for (var m = 0; m < dadosAnuncios.length; m++) {
+        var s = dadosAnuncios[m];
+        var idAnuncioS         = s[0];
+        var skuAnunciadoS      = s[1];
+        var qtdNoAnuncioS      = parseFloat(s[2]) || 1;
+        var taxaCampanha       = (String(s[3]).trim().toUpperCase() === "SIM") ? 0.025 : 0;
+        var tipoMargemS        = s[4];
+        var margemCustomizadaS = parseFloat(s[5]) || 0;
+        var alqDestinoS        = parseFloat(s[6]) || 0;
+        var fecopDestinoS      = parseFloat(s[7]) || 0;
+
+        if (!skuAnunciadoS) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
+          continue;
+        }
+
+        var blocoS = construirBlocoVirtual(skuAnunciadoS, qtdNoAnuncioS, tipoMargemS, margemCustomizadaS, "Shopee", db);
+        if (!blocoS) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", "404: SKU não encontrado na TGFPRO."]);
+          continue;
+        }
+
+        var dS = calcularPrecoSHP(blocoS, db.config, alqDestinoS, fecopDestinoS, taxaCampanha);
+        if (!dS.sucesso) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", dS.feedback]);
+          continue;
+        }
+
+        resultadosPreco.push([
+          dS.preco, dS.custo, dS.comissao, dS.frete, dS.icms, dS.difal,
+          dS.fecop, dS.pisCofins, dS.ipi, dS.irpj, dS.csll, dS.margem, dS.feedback
+        ]);
+        _explodirVuncom(idAnuncioS, skuAnunciadoS, blocoS, dS, resultadosVuncom);
       }
     }
 
     return ContentService.createTextOutput(JSON.stringify({
       sucesso: true,
-      precoFinal: resultadosPrecoFinal,
-      vuncom: resultadosVuncom
+      precoFinal: resultadosPreco,
+      vuncom:     resultadosVuncom
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
@@ -146,5 +151,25 @@ function doPost(e) {
       sucesso: false,
       erro: err.message
     })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function _explodirVuncom(idAnuncio, skuAnunciado, bloco, d, resultadosVuncom) {
+  var valorAlvoTotal = 0;
+  for (var v = 0; v < bloco.origemICMSArray.length; v++) {
+    valorAlvoTotal += bloco.origemICMSArray[v].valorAlvoAbsoluto;
+  }
+  for (var c = 0; c < bloco.origemICMSArray.length; c++) {
+    var comp           = bloco.origemICMSArray[c];
+    var proporcao      = comp.valorAlvoAbsoluto / valorAlvoTotal;
+    var vlrFreteRateio = d.frete * proporcao;
+    var vlrProdRateio  = (d.preco - d.frete) * proporcao;
+    var vlrProdReal    = vlrProdRateio / (1 + comp.ipi);
+    var vlrIpi         = vlrProdRateio - vlrProdReal;
+    var vlrUniNfe      = vlrProdReal / comp.qtdComponente;
+    resultadosVuncom.push([
+      idAnuncio, skuAnunciado, comp.skuComponente, comp.qtdComponente,
+      vlrUniNfe, vlrProdReal, vlrFreteRateio, vlrIpi
+    ]);
   }
 }
