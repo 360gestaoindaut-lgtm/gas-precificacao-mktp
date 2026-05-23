@@ -46,15 +46,20 @@ function buscarReputacaoMercadoLivre(accessToken) {
   var response = UrlFetchApp.fetch(ML_USUARIO_URL, options);
   if (response.getResponseCode() === 200) {
     var data = JSON.parse(response.getContentText());
-    return normalizarReputacao(data.seller_reputation.level_id, data.seller_reputation.power_seller_status);
+    var rep  = data.seller_reputation || {};
+    return {
+      levelId:     rep.level_id            || null,
+      powerStatus: rep.power_seller_status || null
+    };
   }
-  return 'Sem Reputação';
+  return { levelId: null, powerStatus: null };
 }
 
 function normalizarReputacao(levelId, powerStatus) {
-  if (levelId === '5_green' || levelId === '4_light_green' || powerStatus) return 'Verde';
+  // Seller novo (null) recebe os mesmos descontos de frete que Verde (30% sub-79, 50% acima-79)
+  if (powerStatus || levelId === '5_green' || levelId === '4_light_green' || !levelId) return 'Verde';
   if (levelId === '3_yellow') return 'Amarela';
-  return 'Sem Reputação';
+  return 'Sem Reputação'; // 1_red, 2_orange: sem desconto de frete
 }
 
 // Utilitário de manutenção: limpa todos os tokens e estados OAuth sem tocar nas credenciais.
