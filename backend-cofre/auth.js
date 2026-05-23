@@ -55,3 +55,24 @@ function normalizarReputacao(levelId, powerStatus) {
   if (levelId === '3_yellow') return 'Amarela';
   return 'Sem Reputação';
 }
+
+// Utilitário de manutenção: limpa tokens de sessão OAuth2 sem tocar nas credenciais.
+// Execute manualmente pelo editor GAS em caso de estado corrompido ou expirado.
+function resetarConexaoML() {
+  var props    = PropertiesService.getScriptProperties();
+  var todas    = props.getProperties();
+  var removidas = [];
+
+  for (var chave in todas) {
+    var ehEstadoOAuth  = chave.indexOf('oauth2.') === 0;
+    var ehTokenSessao  = chave.indexOf('ML_ACCESS_TOKEN_') === 0 || chave.indexOf('ML_REFRESH_TOKEN_') === 0;
+    if (ehEstadoOAuth || ehTokenSessao) {
+      props.deleteProperty(chave);
+      removidas.push(chave);
+    }
+  }
+
+  Logger.log(removidas.length > 0
+    ? 'Resetadas ' + removidas.length + ' chave(s): ' + removidas.join(', ')
+    : 'Nenhuma chave de sessão encontrada. Nada foi removido.');
+}
