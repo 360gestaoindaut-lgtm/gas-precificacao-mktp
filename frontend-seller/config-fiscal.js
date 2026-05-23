@@ -12,7 +12,7 @@ function salvarConfigFiscal(dados) {
       mapa[chave] = String(dados[chave]);
     }
   }
-  PropertiesService.getUserProperties().setProperties(mapa);
+  PropertiesService.getUserProperties().setProperties(mapa, true);
   return '✅ Configurações salvas com sucesso!';
 }
 
@@ -30,4 +30,10 @@ function carregarConfigFiscal() {
     tomarCredito:     props.tomarCredito               || 'Não',
     baseCredito:      props.baseCredito                || 'Nenhum'
   };
+}
+
+function debugVariaveisInvisiveis() {
+  var memoria = PropertiesService.getUserProperties().getProperties();
+  console.log("Banco de Dados do Usuário Ativo:");
+  console.log(JSON.stringify(memoria, null, 2));
 }

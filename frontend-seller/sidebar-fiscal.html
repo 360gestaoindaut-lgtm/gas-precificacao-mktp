@@ -131,17 +131,45 @@
 
   function salvar() {
     var regime = document.getElementById('regime').value;
-    var dados = {
-      regimeTributario: regime,
-      alqPis:        sanitizarPercentual(document.getElementById('alqPis').value),
-      alqCofins:     sanitizarPercentual(document.getElementById('alqCofins').value),
-      irpj:          sanitizarPercentual(document.getElementById('irpj').value),
-      csll:          sanitizarPercentual(document.getElementById('csll').value),
-      cargaSnNormal: sanitizarPercentual(document.getElementById('cargaSnNormal').value),
-      cargaSnSt:     sanitizarPercentual(document.getElementById('cargaSnSt').value),
-      tomarCredito:  document.getElementById('tomarCredito').value,
-      baseCredito:   document.getElementById('baseCredito').value
-    };
+    var dados;
+
+    if (regime === 'Simples Nacional') {
+      dados = {
+        regimeTributario: regime,
+        alqPis:        0,
+        alqCofins:     0,
+        irpj:          0,
+        csll:          0,
+        cargaSnNormal: sanitizarPercentual(document.getElementById('cargaSnNormal').value),
+        cargaSnSt:     sanitizarPercentual(document.getElementById('cargaSnSt').value),
+        tomarCredito:  'Não',
+        baseCredito:   'Nenhum'
+      };
+    } else if (regime === 'Lucro Presumido') {
+      dados = {
+        regimeTributario: regime,
+        alqPis:        sanitizarPercentual(document.getElementById('alqPis').value),
+        alqCofins:     sanitizarPercentual(document.getElementById('alqCofins').value),
+        irpj:          sanitizarPercentual(document.getElementById('irpj').value),
+        csll:          sanitizarPercentual(document.getElementById('csll').value),
+        cargaSnNormal: 0,
+        cargaSnSt:     0,
+        tomarCredito:  'Não',
+        baseCredito:   'Nenhum'
+      };
+    } else { // Lucro Real
+      dados = {
+        regimeTributario: regime,
+        alqPis:        sanitizarPercentual(document.getElementById('alqPis').value),
+        alqCofins:     sanitizarPercentual(document.getElementById('alqCofins').value),
+        irpj:          sanitizarPercentual(document.getElementById('irpj').value),
+        csll:          sanitizarPercentual(document.getElementById('csll').value),
+        cargaSnNormal: 0,
+        cargaSnSt:     0,
+        tomarCredito:  document.getElementById('tomarCredito').value,
+        baseCredito:   document.getElementById('baseCredito').value
+      };
+    }
 
     var btn = document.getElementById('btn-save');
     btn.disabled = true;
