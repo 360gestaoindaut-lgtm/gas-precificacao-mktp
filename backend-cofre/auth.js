@@ -1,88 +1,56 @@
-var ML_AUTH_URL    = 'https://auth.mercadolivre.com.br/authorization';
-var ML_TOKEN_URL   = 'https://api.mercadolibre.com/oauth/token';
-var ML_USUARIO_URL = 'https://api.mercadolibre.com/users/me';
-
-function obterUrlAutorizacao(spreadsheetId) {
-  var props       = PropertiesService.getScriptProperties();
-  var clientId    = props.getProperty('ML_CLIENT_ID');
-  var redirectUri = ScriptApp.getService().getUrl();
-
-  return ML_AUTH_URL
-    + '?response_type=code'
-    + '&client_id='    + encodeURIComponent(clientId)
-    + '&redirect_uri=' + encodeURIComponent(redirectUri)
-    + '&state='        + encodeURIComponent(spreadsheetId);
+function getMercadoLivreService(spreadsheetId) {
+  return OAuth2.createService('ML_' + spreadsheetId)
+    .setAuthorizationBaseUrl('https://auth.mercadolivre.com.br/authorization')
+    .setTokenUrl('https://api.mercadolibre.com/oauth/token')
+    .setClientId(PropertiesService.getScriptProperties().getProperty('ML_CLIENT_ID'))
+    .setClientSecret(PropertiesService.getScriptProperties().getProperty('ML_CLIENT_SECRET'))
+    .setCallbackFunction('authCallback')
+    .setPropertyStore(PropertiesService.getScriptProperties())
+    .setParam('response_type', 'code');
 }
 
-function procederTrocaDeToken(code, spreadsheetId) {
-  var props        = PropertiesService.getScriptProperties();
-  var clientId     = props.getProperty('ML_CLIENT_ID');
-  var clientSecret = props.getProperty('ML_CLIENT_SECRET');
-  var redirectUri  = ScriptApp.getService().getUrl();
+function obterUrlAutorizacao(spreadsheetId) {
+  return getMercadoLivreService(spreadsheetId).getAuthorizationUrl();
+}
 
-  var res = UrlFetchApp.fetch(ML_TOKEN_URL, {
-    method:             'post',
-    contentType:        'application/x-www-form-urlencoded',
-    payload: {
-      grant_type:    'authorization_code',
-      client_id:     clientId,
-      client_secret: clientSecret,
-      code:          code,
-      redirect_uri:  redirectUri
-    },
-    muteHttpExceptions: true
-  });
+function authCallback(request) {
+  var spreadsheetId = (request.parameter.state || '').replace('ML_', '');
+  var service       = getMercadoLivreService(spreadsheetId);
+  var authorized    = service.handleCallback(request);
 
-  var dados = JSON.parse(res.getContentText());
-  if (!dados.access_token) throw new Error('Falha na troca de token: ' + JSON.stringify(dados));
-
-  props.setProperty('ML_ACCESS_TOKEN_'  + spreadsheetId, dados.access_token);
-  props.setProperty('ML_REFRESH_TOKEN_' + spreadsheetId, dados.refresh_token);
+  if (authorized) {
+    return HtmlService.createHtmlOutput(
+      '<h1 style="font-family:sans-serif; color:#2E7D32;">Conexão Concluída!</h1>' +
+      '<p style="font-family:sans-serif;">A 360 Gestão autenticou sua conta. Pode fechar esta aba e retornar à planilha.</p>'
+    );
+  } else {
+    return HtmlService.createHtmlOutput(
+      '<h1 style="font-family:sans-serif; color:#D32F2F;">Acesso Negado</h1>' +
+      '<p style="font-family:sans-serif;">Falha na autorização do Mercado Livre.</p>'
+    );
+  }
 }
 
 function obterAccessTokenValido(spreadsheetId) {
-  var props        = PropertiesService.getScriptProperties();
-  var refreshToken = props.getProperty('ML_REFRESH_TOKEN_' + spreadsheetId);
-  if (!refreshToken) return null;
-
-  var clientId     = props.getProperty('ML_CLIENT_ID');
-  var clientSecret = props.getProperty('ML_CLIENT_SECRET');
-
-  var res = UrlFetchApp.fetch(ML_TOKEN_URL, {
-    method:             'post',
-    contentType:        'application/x-www-form-urlencoded',
-    payload: {
-      grant_type:    'refresh_token',
-      client_id:     clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken
-    },
-    muteHttpExceptions: true
-  });
-
-  var dados = JSON.parse(res.getContentText());
-  if (!dados.access_token) return null;
-
-  props.setProperty('ML_ACCESS_TOKEN_'  + spreadsheetId, dados.access_token);
-  props.setProperty('ML_REFRESH_TOKEN_' + spreadsheetId, dados.refresh_token);
-  return dados.access_token;
+  var service = getMercadoLivreService(spreadsheetId);
+  if (service.hasAccess()) {
+    return service.getAccessToken();
+  }
+  return null;
 }
 
 function buscarReputacaoMercadoLivre(accessToken) {
-  var res  = UrlFetchApp.fetch(ML_USUARIO_URL, {
-    headers:            { 'Authorization': 'Bearer ' + accessToken },
-    muteHttpExceptions: true
-  });
-  var user = JSON.parse(res.getContentText());
-  var rep  = user.seller_reputation || {};
-  return {
-    levelId:     rep.level_id            || null,
-    powerStatus: rep.power_seller_status || null
-  };
+  var options  = { headers: { Authorization: 'Bearer ' + accessToken }, muteHttpExceptions: true };
+  var response = UrlFetchApp.fetch('https://api.mercadolibre.com/users/me', options);
+  if (response.getResponseCode() === 200) {
+    var data = JSON.parse(response.getContentText());
+    return normalizarReputacao(data.seller_reputation.level_id, data.seller_reputation.power_seller_status);
+  }
+  return 'Sem Reputação';
 }
 
 function normalizarReputacao(levelId, powerStatus) {
-  if (levelId === '5_green' || levelId === '4_light_green') return 'Verde';
+  if (levelId === '5_green' || levelId === '4_light_green' || powerStatus) return 'Verde';
   if (levelId === '3_yellow') return 'Amarela';
   return 'Sem Reputação';
 }

@@ -1,28 +1,14 @@
 function doGet(e) {
-  var params = e.parameter;
-
-  if (params.code && params.state) {
-    try {
-      procederTrocaDeToken(params.code, params.state);
-      return HtmlService.createHtmlOutput(
-        '<h2>✅ Mercado Livre conectado com sucesso!</h2>' +
-        '<p>Pode fechar esta janela e voltar à planilha.</p>'
-      );
-    } catch (err) {
-      return HtmlService.createHtmlOutput(
-        '<h2>❌ Erro na autenticação</h2><p>' + err.message + '</p>'
-      );
-    }
+  if (e.parameter.action === 'conectar' && e.parameter.id) {
+    var urlAuth = obterUrlAutorizacao(e.parameter.id);
+    var html = '<div style="font-family:sans-serif; text-align:center; margin-top:50px;">' +
+               '<h2>Integração 360 Gestão</h2>' +
+               '<p>Clique no botão abaixo para autorizar o motor de precificação.</p>' +
+               '<a href="' + urlAuth + '" target="_top" style="background:#FFE600; color:#333; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">Conectar ao Mercado Livre</a>' +
+               '</div>';
+    return HtmlService.createHtmlOutput(html);
   }
-
-  if (params.action === 'conectar' && params.id) {
-    var urlAuth = obterUrlAutorizacao(params.id);
-    var htmlRedirect = "<script>window.top.location.href = '" + urlAuth + "';</script>" +
-                       "<p>Redirecionando para o ambiente seguro do Mercado Livre...</p>";
-    return HtmlService.createHtmlOutput(htmlRedirect);
-  }
-
-  return HtmlService.createHtmlOutput('<p>Endpoint inativo.</p>');
+  return HtmlService.createHtmlOutput('Serviço Ativo.');
 }
 
 function doPost(e) {
