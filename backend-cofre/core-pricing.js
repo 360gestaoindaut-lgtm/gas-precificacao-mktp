@@ -1,82 +1,3 @@
-/**
- * MÓDULO 1: CAMADA DE DADOS E ESTRUTURAÇÃO DO BLOCO VIRTUAL
- * Responsabilidade: Ler o Google Sheets de forma otimizada (In-Memory)
- * e preparar a estrutura de dados (O Bloco Virtual) para o motor matemático.
- */
-
-// 1. CARREGAMENTO DO BANCO DE DADOS PARA A MEMÓRIA
-function carregarBancoDeDados() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  // 1.1. Lendo as Configurações Globais (Aba 0)
-  var abaConfig = ss.getSheetByName("CONFIG_SELLER");
-  var dadosConfig = abaConfig.getDataRange().getValues();
-  // Linha 0 é o cabeçalho, Linha 1 são os dados.
-  var config = {
-    reputacao: dadosConfig[1][0],
-    pisCofins: dadosConfig[1][1] || 0,
-    irpj: dadosConfig[1][2] || 0,
-    csll: dadosConfig[1][3] || 0,
-    regimeTributario: dadosConfig[1][4],
-    tomarCredito: (String(dadosConfig[1][5]).trim().toUpperCase() === "SIM"),
-    baseCredito: dadosConfig[1][6],
-    cargaSnNormal: parseFloat(dadosConfig[1][7]) || 0,
-    cargaSnSt: parseFloat(dadosConfig[1][8]) || 0
-  };
-
-  // 1.2. Mapeando a TGFPRO (Catálogo e Logística Master)
-  var abaPro = ss.getSheetByName("TGFPRO");
-  var dadosPro = abaPro.getDataRange().getValues();
-  var mapPro = {}; // Usaremos um objeto para busca em O(1) pelo SKU
-
-  for (var i = 1; i < dadosPro.length; i++) {
-    var sku = dadosPro[i][0];
-    if (!sku) continue; // Pula linhas vazias
-
-    mapPro[sku] = {
-      tipoProduto: dadosPro[i][1], // Simples ou Kit
-      origemProduto: dadosPro[i][5],
-      custoAquisicao: parseFloat(dadosPro[i][6]) || 0,
-      pesoKg: parseFloat(dadosPro[i][7]) || 0,
-      comprimento: parseFloat(dadosPro[i][8]) || 0,
-      largura: parseFloat(dadosPro[i][9]) || 0,
-      altura: parseFloat(dadosPro[i][10]) || 0,
-
-      margemML: parseFloat(dadosPro[i][11]) || 0,
-      margemSHP: parseFloat(dadosPro[i][12]) || 0,
-      ipi: parseFloat(dadosPro[i][13]) || 0,
-      regimeIcmsSaida: dadosPro[i][14] || "Débito",
-      redBcIcms: parseFloat(dadosPro[i][15]) || 0
-    };
-  }
-
-  // 1.3. Mapeando a TGFKIT (A Receita de Bolo)
-  var abaKit = ss.getSheetByName("TGFKIT");
-  var dadosKit = abaKit.getDataRange().getValues();
-  var mapKit = {}; // Chave será o SKU_KIT, o valor será um Array de Componentes
-
-  for (var j = 1; j < dadosKit.length; j++) {
-    var skuKit = dadosKit[j][0];
-    if (!skuKit) continue;
-
-    // Se o kit ainda não existe no mapa, cria um array vazio para ele
-    if (!mapKit[skuKit]) {
-      mapKit[skuKit] = [];
-    }
-
-    mapKit[skuKit].push({
-      skuComponente: dadosKit[j][1],
-      qtdComponente: parseFloat(dadosKit[j][2]) || 1,
-      margemKitML: dadosKit[j][3] !== "" ? parseFloat(dadosKit[j][3]) : null,
-      margemKitSHP: dadosKit[j][4] !== "" ? parseFloat(dadosKit[j][4]) : null
-    });
-  }
-
-  return { config: config, produtos: mapPro, kits: mapKit };
-}
-
-
-
 // 2. O ENGENHEIRO DO BLOCO VIRTUAL (Aglutinador Top-Down)
 function construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCustomizada, canalRequisitado, db) {
   var prodMaster = db.produtos[skuAnunciado];
@@ -108,7 +29,7 @@ function construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCus
     if (regimeFormatado === "Débito") {
       res.destaque = alqEfetiva; res.caixa = alqEfetiva;
     } else if (regimeFormatado === "Estorno") {
-      res.destaque = alqEfetiva; res.caixa = 0; 
+      res.destaque = alqEfetiva; res.caixa = 0;
     }
     return res;
   };
@@ -587,14 +508,14 @@ function calcularPrecoSHP(blocoVirtual, config, alqDestino, fecopDestino, taxaCa
     var divisorTier = 1 - (somaImpostosEMargem + comissaoTotalTier);
 
     // Trava de física tributária para esta faixa específica
-    if (divisorTier <= 0) continue; 
+    if (divisorTier <= 0) continue;
 
     var precoCalculado = 0;
     var taxaFixaDestaFaixa = 0;
 
     // A Álgebra do Preço
     if (tier.taxaFixa === "50%") {
-      // REGRA DE MICRO-VALOR: A taxa fixa é 50% do próprio preço. 
+      // REGRA DE MICRO-VALOR: A taxa fixa é 50% do próprio preço.
       // Isso significa que ela entra no divisor, achatando-o absurdamente.
       var divisorMicro = divisorTier - 0.50;
       if (divisorMicro > 0) {
@@ -670,7 +591,7 @@ function calcularPrecoSHP(blocoVirtual, config, alqDestino, fecopDestino, taxaCa
     preco: pFinal,
     custo: blocoVirtual.custoTotal,
     comissao: calcComissaoTotal,
-    frete: 0, 
+    frete: 0,
     icms: calcIcmsCaixa,
     difal: calcDifal,
     fecop: calcFecop,
@@ -680,155 +601,4 @@ function calcularPrecoSHP(blocoVirtual, config, alqDestino, fecopDestino, taxaCa
     csll: calcCsll,
     margem: calcMargem
   };
-}
-
-
-/**
- * MÓDULO 3: O GATILHO DE EXECUÇÃO (CONTROLLER)
- * Responsabilidade: Varrer a aba TGFADS, orquestrar os cálculos
- * e gravar os resultados em lote (batch) para máxima performance.
- */
-
-function processarPrecificacaoEmMassa() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var abaAds = ss.getSheetByName("TGFADS");
-
-  // 1. Inicia o cronômetro mental e carrega o banco de dados
-  var db = carregarBancoDeDados();
-
-  // 2. Lê todos os anúncios de uma vez só
-  // Assumindo que os dados começam na linha 2 e vão até a última linha preenchida
-  var ultimaLinha = abaAds.getLastRow();
-  if (ultimaLinha < 2) return; // Se só tiver cabeçalho, aborta.
-
-  var rangeAds = abaAds.getRange(2, 1, ultimaLinha - 1, abaAds.getLastColumn());
-  var dadosAds = rangeAds.getValues();
-
-  // 3. Prepara um Array vazio para guardar os preços calculados
-  // Gravar célula por célula é lento. Vamos guardar tudo aqui e cuspir de uma vez.
-  var resultadosPrecoFinal = [];
-  var resultadosVuncom = [];
-
-  // 4. O Loop de Orquestração
-  for (var i = 0; i < dadosAds.length; i++) {
-    var linha = dadosAds[i];
-
-    // Mapeamento das colunas da TGFADS (Lembrando: Índice começa no ZERO)
-    var skuAnunciado = linha[1];                        // Coluna B
-    var qtdNoAnuncio = parseFloat(linha[2]) || 1;       // Coluna C
-    var taxaCategoriaML = parseFloat(linha[4]) || 0;    // Coluna E
-    var tipoMargem = linha[5];                          // Coluna F
-    var margemCustomizada = parseFloat(linha[6]) || 0;  // Coluna G
-
-    // VARIÁVEIS FISCAIS E TÁTICAS
-    var alqDestino = parseFloat(linha[7]) || 0;     // Coluna H
-    var fecopDestino = parseFloat(linha[8]) || 0;   // Coluna I
-
-    // Força Frete Grátis Rápido mesmo se o preço do anúncio for menor do que R$79
-    var forcarFreteRapido = (String(linha[9]).trim().toUpperCase() === "SIM"); // Coluna J
-
-    // Captura do canal de venda
-    var canalVenda = String(linha[10]).trim();  // Coluna K
-
-    // Captura a coluna L (Índice 11) e já converte para o percentual matemático
-    var flagCampanha = String(linha[11]).trim().toUpperCase();
-    var taxaCampanhaShopee = (flagCampanha === "SIM") ? 0.025 : 0;
-
-    // Ignora linhas vazias mantendo o alinhamento de 13 colunas
-    if (!skuAnunciado) {
-      resultadosPrecoFinal.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
-      continue;
-    }
-
-    // 5. Aciona o Engenheiro do Bloco Virtual (Módulo 1)
-    var bloco = construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCustomizada, canalVenda, db);
-
-    if (!bloco) {
-      // HTTP 404 - Not Found
-      resultadosPrecoFinal.push(["", "", "", "", "", "", "", "", "", "", "", "", "404: SKU componente não encontrado no catálogo (TGFPRO)."]);
-      continue;
-    }
-
-    // 6. Aciona o Motor Financeiro (Módulo 2)
-    // ----------------------------------------------------------------
-    // O ROTEADOR OMNICHANNEL (A Chave de Trilhos)
-    // ----------------------------------------------------------------
-    var d; // Variável que receberá o objeto de resposta, independente do canal
-
-    if (canalVenda === "Shopee") {
-      // Como o Módulo 2B ainda não foi escrito, disparamos um HTTP 501 (Not Implemented)
-      // Passamos 0 e 0 para Campanha e Penalidade CPF por enquanto
-      d = calcularPrecoSHP(bloco, db.config, alqDestino, fecopDestino, taxaCampanhaShopee);
-    } else {
-      // Fallback de segurança e padrão: Mercado Livre
-      d = calcularPrecoMLB(bloco, db.config, taxaCategoriaML, forcarFreteRapido, alqDestino, fecopDestino);
-    }
-
-    // TRAVA DE SUCESSO E INJEÇÃO NA DRE
-    if (!d.sucesso) {
-      // Falhou no motor (ex: Margem de 100%). Imprime colunas vazias e o erro na coluna Y
-      resultadosPrecoFinal.push(["", "", "", "", "", "", "", "", "", "", "", "", d.feedback]);
-      continue; // Pula a explosão da TGF_VUNCOM (Isso limpa os erros #NUM!)
-    }
-
-    // Sucesso! Empurra a matriz de 13 colunas da auditoria
-    resultadosPrecoFinal.push([
-      d.preco, d.custo, d.comissao, d.frete, d.icms, d.difal,
-      d.fecop, d.pisCofins, d.ipi, d.irpj, d.csll, d.margem, d.feedback
-    ]);
-
-    // --- NOVA LÓGICA: RATEIO E EXPLOSÃO PARA TGF_VUNCOM ---
-    var idAnuncio = linha[0]; // Captura o ID da Coluna A
-    var valorAlvoTotal = 0;
-
-    // Acha a base total de 100% para fazer a proporção do Kit
-    for (var v = 0; v < bloco.origemICMSArray.length; v++) {
-      valorAlvoTotal += bloco.origemICMSArray[v].valorAlvoAbsoluto;
-    }
-
-    // Explode os componentes gerando as 7 colunas
-    for (var c = 0; c < bloco.origemICMSArray.length; c++) {
-      var comp = bloco.origemICMSArray[c];
-      var proporcao = comp.valorAlvoAbsoluto / valorAlvoTotal;
-
-      var vlrFreteRateio = d.frete * proporcao;
-      var vlrProdRateio = (d.preco - d.frete) * proporcao;
-
-      // A MÁGICA DA DEFLAÇÃO: Extraindo o IPI do vProd
-      var vlrProdReal = vlrProdRateio / (1 + comp.ipi);
-      var vlrIpi = vlrProdRateio - vlrProdReal;
-
-      var vlrUniNfe = vlrProdReal / comp.qtdComponente; // Isolando o unitário
-
-      resultadosVuncom.push([
-        idAnuncio,            // 1. ID_ANUNCIO
-        skuAnunciado,         // 2. SKU_ANUNCIO
-        comp.skuComponente,   // 3. <cProd>
-        comp.qtdComponente,   // 4. <qCom>
-        vlrUniNfe,            // 5. <vUnCom>
-        vlrProdReal,          // 6. <vProd>
-        vlrFreteRateio,       // 7. <vFrete>
-        vlrIpi                // 8. <vIPI>
-      ]);
-    }
-  }
-
-  // 7. A Injeção Final em Lote (Batch Write)
-  // Coluna M é a 13ª. O tamanho (width) agora não é mais 1, são 12 colunas simultâneas!
-  var rangeSaida = abaAds.getRange(2, 14, resultadosPrecoFinal.length, 13);
-  rangeSaida.setValues(resultadosPrecoFinal);
-
-  // 8. A INJEÇÃO NA STAGING TABLE (TGF_VUNCOM)
-  var abaVuncom = ss.getSheetByName("TGF_VUNCOM");
-  var ultimaLinhaVuncom = abaVuncom.getLastRow();
-
-  // Limpa o lixo da rodada anterior (se houver dados da linha 2 em diante)
-  if (ultimaLinhaVuncom > 1) {
-    abaVuncom.getRange(2, 1, ultimaLinhaVuncom - 1, 8).clearContent();
-  }
-
-  // Injeta a nova explosão de Kits com 7 colunas
-  if (resultadosVuncom.length > 0) {
-    abaVuncom.getRange(2, 1, resultadosVuncom.length, 8).setValues(resultadosVuncom);
-  }
 }
