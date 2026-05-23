@@ -7,7 +7,8 @@
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('360 Gestão')
-    .addItem('⚡ Recalcular Preços', 'acionarMotorRemoto')
+    .addItem('⚡ Recalcular Preços - Mercado Livre', 'acionarMotorMLB')
+    .addItem('⚡ Recalcular Preços - Shopee', 'acionarMotorSHP')
     .addItem('⚙️ Configurações Fiscais', 'abrirConfigFiscal')
     .addSeparator()
     .addItem('ℹ️ Sobre o Motor', 'exibirSobre')

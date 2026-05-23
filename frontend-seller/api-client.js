@@ -1,6 +1,9 @@
-const COFRE_API_URL = "COLE_AQUI_A_URL_DO_WEBAPP";
+const COFRE_API_URL = "https://script.google.com/macros/s/AKfycbx4jdB_pz1b6sm6qei90SrcTHMgV3rPguphsw_OSrsZqz6FD2T83XSCPapNiywR35QnIQ/exec";
 
-function acionarMotorRemoto() {
+function acionarMotorMLB() { _orquestrarMotor("MLB"); }
+function acionarMotorSHP() { _orquestrarMotor("SHP"); }
+
+function _orquestrarMotor(canal) {
   var ui = SpreadsheetApp.getUi();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -15,31 +18,33 @@ function acionarMotorRemoto() {
     return;
   }
 
-  // 2. Captura as abas obrigatórias
-  var abaPro  = ss.getSheetByName('TGFPRO');
-  var abaKit  = ss.getSheetByName('TGFKIT');
-  var abaAds  = ss.getSheetByName('TGFADS');
-
+  // 2. Captura abas obrigatórias comuns
+  var abaPro = ss.getSheetByName('TGFPRO');
+  var abaKit = ss.getSheetByName('TGFKIT');
   if (!abaPro) { ui.alert('Erro', 'Aba TGFPRO não encontrada na planilha.', ui.ButtonSet.OK); return; }
   if (!abaKit) { ui.alert('Erro', 'Aba TGFKIT não encontrada na planilha.', ui.ButtonSet.OK); return; }
-  if (!abaAds) { ui.alert('Erro', 'Aba TGFADS não encontrada na planilha.', ui.ButtonSet.OK); return; }
 
-  // 3. Lê os dados em memória (batch read)
+  // 3. Leitura condicional da aba de anúncios do canal
+  var nomeAbaCanal = (canal === "MLB") ? "TGFMLB" : "TGFSHP";
+  var abaCanal = ss.getSheetByName(nomeAbaCanal);
+  if (!abaCanal) { ui.alert('Erro', 'Aba ' + nomeAbaCanal + ' não encontrada na planilha.', ui.ButtonSet.OK); return; }
+
+  // 4. Monta o payload otimizado (apenas a aba do canal selecionado)
   var payload = {
-    config:    configFiscal,
-    dadosPro:  abaPro.getDataRange().getValues(),
-    dadosKit:  abaKit.getDataRange().getValues(),
-    dadosAds:  abaAds.getDataRange().getValues()
+    canalAlvo:     canal,
+    config:        configFiscal,
+    dadosPro:      abaPro.getDataRange().getValues(),
+    dadosKit:      abaKit.getDataRange().getValues(),
+    dadosAnuncios: abaCanal.getDataRange().getValues()
   };
 
-  // 4. Disparo HTTP POST para o Cofre
+  // 5. Disparo HTTP POST para o Cofre
   var res = UrlFetchApp.fetch(COFRE_API_URL, {
     method:      'post',
     contentType: 'application/json',
     payload:     JSON.stringify(payload)
   });
 
-  // 5. Parse e validação da resposta
   var resposta = JSON.parse(res.getContentText());
 
   if (!resposta.sucesso) {
@@ -47,22 +52,22 @@ function acionarMotorRemoto() {
     return;
   }
 
-  // 6. Gravação da DRE na TGFADS (coluna N = 14, a partir da linha 2)
+  // 6. Gravação da DRE na aba do canal (col J=10 para MLB, col I=9 para SHP)
   if (resposta.precoFinal && resposta.precoFinal.length > 0) {
-    abaAds.getRange(2, 14, resposta.precoFinal.length, 13).setValues(resposta.precoFinal);
+    var colunaInicio = (canal === "MLB") ? 10 : 9;
+    abaCanal.getRange(2, colunaInicio, resposta.precoFinal.length, 13).setValues(resposta.precoFinal);
   }
 
   // 7. Gravação na TGF_VUNCOM (limpa e regrava)
   var abaVuncom = ss.getSheetByName('TGF_VUNCOM');
   if (abaVuncom) {
-    var ultimaLinhaVuncom = abaVuncom.getLastRow();
-    if (ultimaLinhaVuncom > 1) {
-      abaVuncom.getRange(2, 1, ultimaLinhaVuncom - 1, 8).clearContent();
-    }
+    var ultima = abaVuncom.getLastRow();
+    if (ultima > 1) abaVuncom.getRange(2, 1, ultima - 1, 8).clearContent();
     if (resposta.vuncom && resposta.vuncom.length > 0) {
       abaVuncom.getRange(2, 1, resposta.vuncom.length, 8).setValues(resposta.vuncom);
     }
   }
 
-  ss.toast('✅ Precificação concluída com sucesso. DRE atualizada.', '360 Gestão', 5);
+  var nomeCanal = (canal === "MLB") ? "Mercado Livre" : "Shopee";
+  ss.toast('✅ Precificação ' + nomeCanal + ' concluída. DRE atualizada.', '360 Gestão', 5);
 }
