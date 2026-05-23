@@ -3,6 +3,16 @@ const COFRE_API_URL = "https://script.google.com/macros/s/AKfycbx4jdB_pz1b6sm6qe
 function acionarMotorMLB() { _orquestrarMotor("MLB"); }
 function acionarMotorSHP() { _orquestrarMotor("SHP"); }
 
+function solicitarVinculoML() {
+  var id  = SpreadsheetApp.getActiveSpreadsheet().getId();
+  var url = COFRE_API_URL + '?action=conectar&id=' + id;
+  var html = HtmlService.createHtmlOutput(
+    '<script>window.open("' + url + '"); google.script.host.close();</script>' +
+    '<p>Abrindo autorização do Mercado Livre...</p>'
+  ).setWidth(300).setHeight(80);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Conectar ao Mercado Livre');
+}
+
 function _orquestrarMotor(canal) {
   var ui = SpreadsheetApp.getUi();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -33,6 +43,7 @@ function _orquestrarMotor(canal) {
   var payload = {
     canalAlvo:     canal,
     config:        configFiscal,
+    spreadsheetId: ss.getId(),
     dadosPro:      abaPro.getDataRange().getValues(),
     dadosKit:      abaKit.getDataRange().getValues(),
     dadosAnuncios: abaCanal.getDataRange().getValues()

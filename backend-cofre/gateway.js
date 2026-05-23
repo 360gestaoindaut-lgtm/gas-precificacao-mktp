@@ -1,3 +1,31 @@
+function doGet(e) {
+  var params = e.parameter;
+
+  if (params.code && params.state) {
+    try {
+      procederTrocaDeToken(params.code, params.state);
+      return HtmlService.createHtmlOutput(
+        '<h2>✅ Mercado Livre conectado com sucesso!</h2>' +
+        '<p>Pode fechar esta janela e voltar à planilha.</p>'
+      );
+    } catch (err) {
+      return HtmlService.createHtmlOutput(
+        '<h2>❌ Erro na autenticação</h2><p>' + err.message + '</p>'
+      );
+    }
+  }
+
+  if (params.action === 'conectar' && params.id) {
+    var url = obterUrlAutorizacao(params.id);
+    return HtmlService.createHtmlOutput(
+      '<script>window.location.href = "' + url + '";</script>' +
+      '<p>Redirecionando para o Mercado Livre...</p>'
+    );
+  }
+
+  return HtmlService.createHtmlOutput('<p>Endpoint inativo.</p>');
+}
+
 function doPost(e) {
   try {
     var req = JSON.parse(e.postData.contents);
@@ -59,6 +87,19 @@ function doPost(e) {
     var dadosAnuncios = req.dadosAnuncios.slice(1); // ignora o cabeçalho
     var resultadosPreco  = [];
     var resultadosVuncom = [];
+
+    // 4. OAuth: injeta reputação real (apenas MLB requer vínculo)
+    if (req.canalAlvo === "MLB") {
+      var accessToken = obterAccessTokenValido(req.spreadsheetId);
+      if (!accessToken) {
+        return ContentService.createTextOutput(JSON.stringify({
+          sucesso: false,
+          erro:    '403: Conta do Mercado Livre não conectada. Acesse "🔗 Conectar Mercado Livre" no menu da planilha.'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var repInfo = buscarReputacaoMercadoLivre(accessToken);
+      db.config.reputacao = normalizarReputacao(repInfo.levelId, repInfo.powerStatus);
+    }
 
     // 4a. Branch MLB
     // Mapeamento TGFMLB: A=ID, B=SKU, C=QTD, D=TipoMargem, E=MargemCustom,

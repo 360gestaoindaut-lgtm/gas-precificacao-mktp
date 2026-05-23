@@ -9,6 +9,7 @@ function onOpen() {
   ui.createMenu('360 Gestão')
     .addItem('⚡ Recalcular Preços - Mercado Livre', 'acionarMotorMLB')
     .addItem('⚡ Recalcular Preços - Shopee', 'acionarMotorSHP')
+    .addItem('🔗 Conectar Mercado Livre', 'solicitarVinculoML')
     .addItem('⚙️ Configurações Fiscais', 'abrirConfigFiscal')
     .addSeparator()
     .addItem('ℹ️ Sobre o Motor', 'exibirSobre')
