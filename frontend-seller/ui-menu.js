@@ -5,9 +5,15 @@
  */
 
 function onOpen(e) {
-  var ui         = SpreadsheetApp.getUi();
-  var menu       = ui.createMenu('360 Gestão');
-  var nomeSeller = PropertiesService.getUserProperties().getProperty('seller_name');
+  var ui   = SpreadsheetApp.getUi();
+  var menu = ui.createMenu('360 Gestão');
+
+  var nomeSeller = null;
+  try {
+    nomeSeller = PropertiesService.getDocumentProperties().getProperty('seller_name');
+  } catch (err) {
+    nomeSeller = null;
+  }
 
   if (nomeSeller) {
     menu.addItem('✅ Logado: ' + nomeSeller, 'mostrarStatusConexao')

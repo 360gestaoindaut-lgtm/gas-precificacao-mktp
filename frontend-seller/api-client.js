@@ -67,7 +67,8 @@ function tentarCapturarToken() {
   });
   var data = JSON.parse(res.getContentText());
   if (data.access_token) {
-    PropertiesService.getUserProperties().setProperties({
+    PropertiesService.getUserProperties().deleteAllProperties();
+    PropertiesService.getDocumentProperties().setProperties({
       access_token:  data.access_token,
       refresh_token: data.refresh_token || '',
       seller_name:   data.nickname || 'Vendedor'
@@ -81,7 +82,7 @@ function desconectarML() {
   var ui = SpreadsheetApp.getUi();
   var resposta = ui.alert('Desconectar Conta', 'Tem certeza que deseja desvincular a conta atual do Mercado Livre desta planilha?', ui.ButtonSet.YES_NO);
   if (resposta === ui.Button.YES) {
-    var props = PropertiesService.getUserProperties();
+    var props = PropertiesService.getDocumentProperties();
     props.deleteProperty('access_token');
     props.deleteProperty('refresh_token');
     props.deleteProperty('seller_name');
@@ -90,7 +91,7 @@ function desconectarML() {
 }
 
 function mostrarStatusConexao() {
-  var nome = PropertiesService.getUserProperties().getProperty('seller_name');
+  var nome = PropertiesService.getDocumentProperties().getProperty('seller_name');
   SpreadsheetApp.getUi().alert('Status Ativo', 'Operando as requisições sob a conta Mercado Livre: ' + nome, SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
