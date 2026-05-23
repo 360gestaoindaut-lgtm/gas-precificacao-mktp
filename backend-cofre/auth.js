@@ -1,4 +1,4 @@
-var ML_AUTH_URL    = 'https://auth.mercadolibre.com.br/authorization';
+var ML_AUTH_URL    = 'https://auth.mercadolivre.com.br/authorization';
 var ML_TOKEN_URL   = 'https://api.mercadolibre.com/oauth/token';
 var ML_USUARIO_URL = 'https://api.mercadolibre.com/users/me';
 
