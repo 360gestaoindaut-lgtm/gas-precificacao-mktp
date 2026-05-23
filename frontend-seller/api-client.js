@@ -4,13 +4,76 @@ function acionarMotorMLB() { _orquestrarMotor("MLB"); }
 function acionarMotorSHP() { _orquestrarMotor("SHP"); }
 
 function solicitarVinculoML() {
-  var id  = SpreadsheetApp.getActiveSpreadsheet().getId();
-  var url = COFRE_API_URL + '?action=conectar&id=' + id;
-  var html = HtmlService.createHtmlOutput(
-    '<script>window.open("' + url + '"); google.script.host.close();</script>' +
-    '<p>Abrindo autorização do Mercado Livre...</p>'
-  ).setWidth(300).setHeight(80);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Conectar ao Mercado Livre');
+  var ssId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  var uuid = Utilities.getUuid();
+
+  // Registra o par uuid → spreadsheetId no backend para validação CSRF
+  UrlFetchApp.fetch(COFRE_API_URL, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify({ action: 'registerCsrfState', uuid: uuid, spreadsheetId: ssId }),
+    muteHttpExceptions: true
+  });
+
+  // Busca o clientId do backend (fonte única de verdade — ScriptProperties)
+  var configRes = UrlFetchApp.fetch(COFRE_API_URL, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify({ action: 'getConfig' }),
+    muteHttpExceptions: true
+  });
+  var clientId    = JSON.parse(configRes.getContentText()).clientId;
+  var redirectUri = encodeURIComponent(COFRE_API_URL);
+  var url = 'https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=' + clientId + '&redirect_uri=' + redirectUri + '&state=' + uuid;
+
+  var htmlContent =
+    '<div style="font-family:sans-serif;text-align:center;padding:20px;">' +
+    '<h3>Conexão 360 Gestão</h3>' +
+    '<p>Autorize o acesso no Mercado Livre</p>' +
+    '<a id="btnML" href="' + url + '" target="_blank" onclick="iniciarPolling()" ' +
+      'style="background:#FFE600;color:#333;padding:10px 20px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">' +
+      'ABRIR MERCADO LIVRE' +
+    '</a>' +
+    '<p id="statusMsg" style="margin-top:20px;color:#888;">Aguardando ação...</p>' +
+    '<script>' +
+      'var _interval;' +
+      'function iniciarPolling() {' +
+        'document.getElementById("statusMsg").innerText = "🔄 Aguardando retorno do servidor...";' +
+        'document.getElementById("btnML").style.pointerEvents = "none";' +
+        'document.getElementById("btnML").style.opacity = "0.5";' +
+        '_interval = setInterval(function() {' +
+          'google.script.run.withSuccessHandler(function(res) {' +
+            'if (res === "OK") {' +
+              'clearInterval(_interval);' +
+              'document.getElementById("statusMsg").innerHTML = "✅ <b>Conectado!</b> Fechando...";' +
+              'setTimeout(function() { google.script.host.close(); }, 1500);' +
+            '}' +
+          '}).tentarCapturarToken();' +
+        '}, 3000);' +
+      '}' +
+    '</script>' +
+    '</div>';
+
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput(htmlContent).setHeight(250),
+    'Autorização'
+  );
+}
+
+function tentarCapturarToken() {
+  var ssId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  var res  = UrlFetchApp.fetch(COFRE_API_URL, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify({ action: 'fetchToken', spreadsheetId: ssId }),
+    muteHttpExceptions: true
+  });
+  var data = JSON.parse(res.getContentText());
+  if (data.access_token) {
+    PropertiesService.getUserProperties().setProperties({
+      access_token:  data.access_token,
+      refresh_token: data.refresh_token || ''
+    });
+    return 'OK';
+  }
+  return 'WAIT';
 }
 
 function _orquestrarMotor(canal) {
