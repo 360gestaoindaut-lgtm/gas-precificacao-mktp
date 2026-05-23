@@ -61,20 +61,20 @@ function doPost(e) {
     var resultadosVuncom = [];
 
     // 4a. Branch MLB
-    // Mapeamento TGFMLB: A=ID, B=SKU, C=QTD, D=ForcarFrete, E=TaxaCategoria,
-    //                    F=TipoMargem, G=MargemCustom, H=AlqDestino, I=FecopDestino
+    // Mapeamento TGFMLB: A=ID, B=SKU, C=QTD, D=TipoMargem, E=MargemCustom,
+    //                    F=TaxaCategoria, G=AlqDestino, H=FecopDestino, I=ForcarFrete
     if (req.canalAlvo === "MLB") {
       for (var k = 0; k < dadosAnuncios.length; k++) {
         var l = dadosAnuncios[k];
         var idAnuncio         = l[0];
         var skuAnunciado      = l[1];
         var qtdNoAnuncio      = parseFloat(l[2]) || 1;
-        var forcarFreteRapido = (String(l[3]).trim().toUpperCase() === "SIM");
-        var taxaCategoriaML   = parseFloat(l[4]) || 0;
-        var tipoMargem        = l[5];
-        var margemCustomizada = parseFloat(l[6]) || 0;
-        var alqDestino        = parseFloat(l[7]) || 0;
-        var fecopDestino      = parseFloat(l[8]) || 0;
+        var tipoMargem        = l[3];
+        var margemCustomizada = parseFloat(l[4]) || 0;
+        var taxaCategoriaML   = parseFloat(l[5]) || 0;
+        var alqDestino        = parseFloat(l[6]) || 0;
+        var fecopDestino      = parseFloat(l[7]) || 0;
+        var forcarFreteRapido = (String(l[8]).trim().toUpperCase() === "SIM");
 
         if (!skuAnunciado) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
@@ -101,19 +101,19 @@ function doPost(e) {
       }
 
     // 4b. Branch SHP
-    // Mapeamento TGFSHP: A=ID, B=SKU, C=QTD, D=FlagCampanha,
-    //                    E=TipoMargem, F=MargemCustom, G=AlqDestino, H=FecopDestino
+    // Mapeamento TGFSHP: A=ID, B=SKU, C=QTD, D=TipoMargem, E=MargemCustom,
+    //                    F=AlqDestino, G=FecopDestino, H=FlagCampanha
     } else if (req.canalAlvo === "SHP") {
       for (var m = 0; m < dadosAnuncios.length; m++) {
         var s = dadosAnuncios[m];
         var idAnuncioS         = s[0];
         var skuAnunciadoS      = s[1];
         var qtdNoAnuncioS      = parseFloat(s[2]) || 1;
-        var taxaCampanha       = (String(s[3]).trim().toUpperCase() === "SIM") ? 0.025 : 0;
-        var tipoMargemS        = s[4];
-        var margemCustomizadaS = parseFloat(s[5]) || 0;
-        var alqDestinoS        = parseFloat(s[6]) || 0;
-        var fecopDestinoS      = parseFloat(s[7]) || 0;
+        var tipoMargemS        = s[3];
+        var margemCustomizadaS = parseFloat(s[4]) || 0;
+        var alqDestinoS        = parseFloat(s[5]) || 0;
+        var fecopDestinoS      = parseFloat(s[6]) || 0;
+        var taxaCampanha       = (String(s[7]).trim().toUpperCase() === "SIM") ? 0.025 : 0;
 
         if (!skuAnunciadoS) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
