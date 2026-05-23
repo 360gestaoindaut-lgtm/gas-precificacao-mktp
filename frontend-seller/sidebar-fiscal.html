@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Google Sans', Arial, sans-serif; font-size: 13px; color: #3c4043; background: #fff; }
+    .container { padding: 16px; }
+    h2 { font-size: 15px; font-weight: 600; color: #1a73e8; margin-bottom: 16px; border-bottom: 2px solid #e8f0fe; padding-bottom: 8px; }
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    select, input[type="number"] {
+      width: 100%; padding: 7px 10px; border: 1px solid #dadce0; border-radius: 6px;
+      font-size: 13px; color: #3c4043; background: #fff; transition: border-color 0.15s;
+    }
+    select:focus, input[type="number"]:focus {
+      outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+    }
+    .section-block {
+      background: #f8f9fa; border-radius: 8px; padding: 12px;
+      margin-bottom: 12px; border: 1px solid #e8eaed;
+    }
+    .section-title { font-size: 11px; font-weight: 700; color: #1a73e8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .hidden { display: none; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-save {
+      width: 100%; padding: 10px; background: #1a73e8; color: #fff; border: none;
+      border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 4px;
+      transition: background 0.15s;
+    }
+    .btn-save:hover { background: #1557b0; }
+    .btn-save:disabled { background: #9aa0a6; cursor: not-allowed; }
+    #status-msg { margin-top: 10px; padding: 8px 12px; border-radius: 6px; font-size: 12px; text-align: center; }
+    .msg-ok      { background: #e6f4ea; color: #137333; }
+    .msg-err     { background: #fce8e6; color: #c5221f; }
+    .msg-loading { background: #e8f0fe; color: #1a73e8; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>⚙️ Configurações Fiscais</h2>
+
+  <div class="form-group">
+    <label>Regime Tributário</label>
+    <select id="regime" onchange="onRegimeChange()">
+      <option value="Lucro Real">Lucro Real</option>
+      <option value="Lucro Presumido">Lucro Presumido</option>
+      <option value="Simples Nacional">Simples Nacional</option>
+    </select>
+  </div>
+
+  <div id="bloco-regime-normal" class="section-block">
+    <div class="section-title">Alíquotas — Regime Normal</div>
+    <div class="row-2">
+      <div class="form-group">
+        <label>PIS + COFINS (%)</label>
+        <input type="number" id="pisCofins" min="0" max="100" step="0.01" placeholder="9.25">
+      </div>
+      <div class="form-group">
+        <label>IRPJ (%)</label>
+        <input type="number" id="irpj" min="0" max="100" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>CSLL (%)</label>
+      <input type="number" id="csll" min="0" max="100" step="0.01" placeholder="0.00">
+    </div>
+  </div>
+
+  <div id="bloco-simples" class="section-block hidden">
+    <div class="section-title">Cargas — Simples Nacional</div>
+    <div class="row-2">
+      <div class="form-group">
+        <label>Carga SN Normal (%)</label>
+        <input type="number" id="cargaSnNormal" min="0" max="100" step="0.01" placeholder="6.00">
+      </div>
+      <div class="form-group">
+        <label>Carga SN c/ ST/Isento (%)</label>
+        <input type="number" id="cargaSnSt" min="0" max="100" step="0.01" placeholder="2.00">
+      </div>
+    </div>
+  </div>
+
+  <div id="bloco-credito" class="section-block hidden">
+    <div class="section-title">Crédito PIS/COFINS — Lucro Real</div>
+    <div class="form-group">
+      <label>Tomar Crédito PIS/COFINS?</label>
+      <select id="tomarCredito">
+        <option value="Não">Não</option>
+        <option value="Sim">Sim</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Base de Crédito</label>
+      <select id="baseCredito">
+        <option value="Nenhum">Nenhum</option>
+        <option value="Frete">Frete</option>
+        <option value="Frete + Comissões">Frete + Comissões</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-save" id="btn-save" onclick="salvar()">💾 Salvar Configurações</button>
+  <div id="status-msg" class="hidden"></div>
+</div>
+
+<script>
+  function onRegimeChange() {
+    var regime = document.getElementById('regime').value;
+    toggle('bloco-regime-normal', regime === 'Lucro Real' || regime === 'Lucro Presumido');
+    toggle('bloco-simples',       regime === 'Simples Nacional');
+    toggle('bloco-credito',       regime === 'Lucro Real');
+  }
+
+  function toggle(id, show) {
+    document.getElementById(id).classList[show ? 'remove' : 'add']('hidden');
+  }
+
+  function pct(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    return isNaN(v) ? 0 : v / 100;
+  }
+
+  function salvar() {
+    var regime = document.getElementById('regime').value;
+    var dados = {
+      regimeTributario: regime,
+      pisCofins:     pct('pisCofins'),
+      irpj:          pct('irpj'),
+      csll:          pct('csll'),
+      cargaSnNormal: pct('cargaSnNormal'),
+      cargaSnSt:     pct('cargaSnSt'),
+      tomarCredito:  document.getElementById('tomarCredito').value,
+      baseCredito:   document.getElementById('baseCredito').value
+    };
+
+    var btn = document.getElementById('btn-save');
+    btn.disabled = true;
+    setStatus('Salvando...', 'loading');
+
+    google.script.run
+      .withSuccessHandler(function(msg) { setStatus(msg, 'ok'); btn.disabled = false; })
+      .withFailureHandler(function(err) { setStatus('Erro: ' + err.message, 'err'); btn.disabled = false; })
+      .salvarConfigFiscal(dados);
+  }
+
+  function setStatus(msg, type) {
+    var el = document.getElementById('status-msg');
+    el.textContent = msg;
+    el.className = 'msg-' + type;
+  }
+
+  function setField(id, val, mult) {
+    if (val !== undefined && val !== null && val !== '') {
+      document.getElementById(id).value = (parseFloat(val) * (mult || 1)).toFixed(2);
+    }
+  }
+
+  // Preenche o formulário com valores já salvos ao abrir
+  google.script.run
+    .withSuccessHandler(function(props) {
+      if (!props) return;
+      document.getElementById('regime').value = props.regimeTributario || 'Lucro Real';
+      onRegimeChange();
+      setField('pisCofins',     props.pisCofins,     100);
+      setField('irpj',          props.irpj,           100);
+      setField('csll',          props.csll,           100);
+      setField('cargaSnNormal', props.cargaSnNormal,  100);
+      setField('cargaSnSt',     props.cargaSnSt,      100);
+      if (props.tomarCredito) document.getElementById('tomarCredito').value = props.tomarCredito;
+      if (props.baseCredito)  document.getElementById('baseCredito').value  = props.baseCredito;
+    })
+    .carregarConfigFiscal();
+</script>
+</body>
+</html>
