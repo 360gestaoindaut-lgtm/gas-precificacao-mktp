@@ -23,6 +23,14 @@ function doGet(e) {
   var resObj = JSON.parse(response.getContentText());
 
   if (resObj.access_token && ssId) {
+    var meRes = UrlFetchApp.fetch('https://api.mercadolibre.com/users/me', {
+      headers: { 'Authorization': 'Bearer ' + resObj.access_token },
+      muteHttpExceptions: true
+    });
+    resObj.nickname = (meRes.getResponseCode() === 200)
+      ? JSON.parse(meRes.getContentText()).nickname
+      : 'Conta ML';
+
     var agora = Math.floor(Date.now() / 1000);
     props.setProperty('TEMP_TOKEN_'       + ssId, JSON.stringify(resObj));
     props.setProperty('ML_ACCESS_TOKEN_'  + ssId, resObj.access_token);
