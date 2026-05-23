@@ -10,14 +10,33 @@ function getMercadoLivreService(spreadsheetId) {
 }
 
 function obterUrlAutorizacao(spreadsheetId) {
-  return getMercadoLivreService(spreadsheetId).getAuthorizationUrl();
+  var service = getMercadoLivreService(spreadsheetId);
+  var url     = service.getAuthorizationUrl();
+
+  var stateParam = url.match(/state=([^&]+)/);
+  if (stateParam && stateParam[1]) {
+    var stateDecoded = decodeURIComponent(stateParam[1]);
+    PropertiesService.getScriptProperties().setProperty('STATE_MAP_' + stateDecoded, spreadsheetId);
+  }
+
+  return url;
 }
 
 function authCallback(request) {
-  var serviceName   = OAuth2.getServiceName(request);          // ex: 'ML_1BxQz...'
-  var spreadsheetId = serviceName.substring('ML_'.length);
-  var service       = getMercadoLivreService(spreadsheetId);
-  var authorized    = service.handleCallback(request);
+  var stateToken    = request.parameter.state;
+  var spreadsheetId = PropertiesService.getScriptProperties().getProperty('STATE_MAP_' + stateToken);
+
+  if (!spreadsheetId) {
+    return HtmlService.createHtmlOutput(
+      '<h1 style="font-family:sans-serif; color:#D32F2F;">Erro de Roteamento</h1>' +
+      '<p style="font-family:sans-serif;">Não foi possível identificar a planilha de origem. O token expirou ou é inválido. Feche e tente novamente.</p>'
+    );
+  }
+
+  var service    = getMercadoLivreService(spreadsheetId);
+  var authorized = service.handleCallback(request);
+
+  PropertiesService.getScriptProperties().deleteProperty('STATE_MAP_' + stateToken);
 
   if (authorized) {
     return HtmlService.createHtmlOutput(
