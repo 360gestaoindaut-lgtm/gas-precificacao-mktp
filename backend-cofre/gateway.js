@@ -1,4 +1,9 @@
 function doGet(e) {
+  // Callback do OAuth2: ML redireciona aqui com ?code=...&state=...
+  if (e.parameter.code) {
+    return authCallback(e);
+  }
+
   if (e.parameter.action === 'conectar' && e.parameter.id) {
     var urlAuth = obterUrlAutorizacao(e.parameter.id);
     var html = '<div style="font-family:sans-serif; text-align:center; margin-top:50px;">' +
@@ -8,6 +13,7 @@ function doGet(e) {
                '</div>';
     return HtmlService.createHtmlOutput(html);
   }
+
   return HtmlService.createHtmlOutput('Serviço Ativo.');
 }
 

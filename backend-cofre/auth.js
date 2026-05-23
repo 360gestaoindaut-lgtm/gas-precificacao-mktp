@@ -14,7 +14,8 @@ function obterUrlAutorizacao(spreadsheetId) {
 }
 
 function authCallback(request) {
-  var spreadsheetId = (request.parameter.state || '').replace('ML_', '');
+  var serviceName   = OAuth2.getServiceName(request);          // ex: 'ML_1BxQz...'
+  var spreadsheetId = serviceName.substring('ML_'.length);
   var service       = getMercadoLivreService(spreadsheetId);
   var authorized    = service.handleCallback(request);
 
