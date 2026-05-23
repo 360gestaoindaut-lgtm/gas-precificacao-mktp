@@ -100,13 +100,9 @@ function _orquestrarMotor(canal) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // 1. Valida configurações fiscais
-  var configFiscal = PropertiesService.getUserProperties().getProperties();
-  if (!configFiscal || !configFiscal.regimeTributario) {
-    ui.alert(
-      '⚠️ Configuração Ausente',
-      'As configurações fiscais não foram definidas.\nAbra ⚙️ Configurações Fiscais no menu, preencha os dados e salve antes de recalcular.',
-      ui.ButtonSet.OK
-    );
+  var configFiscal = carregarConfigFiscal();
+  if (!configFiscal || Object.keys(configFiscal).length === 0 || !configFiscal.regimeTributario) {
+    ui.alert('⚠️ Configuração Ausente', 'As configurações fiscais não foram definidas.\nAbra ⚙️ Configurações Fiscais no menu, preencha os dados e salve antes de recalcular.', ui.ButtonSet.OK);
     return;
   }
 
