@@ -1,7 +1,7 @@
 /**
  * FRONT-END: INTEGRAÇÃO 360 GESTÃO IND & AUT
- * Responsabilidade: Desenhar a interface do usuário (Menu) e
- * delegar os comandos para o motor central (Biblioteca Motor360).
+ * Responsabilidade: Desenhar a interface do usuário (Menu).
+ * A execução do motor é delegada para api-client.js via UrlFetchApp.
  */
 
 function onOpen() {
@@ -23,6 +23,3 @@ function exibirSobre() {
   );
 }
 
-function acionarMotorRemoto() {
-  Motor360.processarPrecificacaoEmMassa();
-}
