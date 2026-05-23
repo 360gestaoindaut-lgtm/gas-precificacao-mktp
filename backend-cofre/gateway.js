@@ -1,25 +1,70 @@
 function doGet(e) {
-  // Callback do OAuth2: ML redireciona aqui com ?code=...&state=...
-  if (e.parameter.code) {
-    return authCallback(e);
+  var props = PropertiesService.getScriptProperties();
+  var code  = e.parameter.code;
+  var uuid  = e.parameter.state;
+
+  if (!code || !uuid) return HtmlService.createHtmlOutput('Parâmetros ausentes.');
+
+  var ssId = props.getProperty('CSRF_' + uuid);
+  if (ssId) props.deleteProperty('CSRF_' + uuid);
+
+  var payload = {
+    grant_type:    'authorization_code',
+    client_id:     props.getProperty('ML_CLIENT_ID'),
+    client_secret: props.getProperty('ML_CLIENT_SECRET'),
+    code:          code,
+    redirect_uri:  ScriptApp.getService().getUrl()
+  };
+
+  var response = UrlFetchApp.fetch('https://api.mercadolibre.com/oauth/token', {
+    method: 'post', payload: payload, muteHttpExceptions: true
+  });
+
+  var resObj = JSON.parse(response.getContentText());
+
+  if (resObj.access_token && ssId) {
+    var agora = Math.floor(Date.now() / 1000);
+    props.setProperty('TEMP_TOKEN_'       + ssId, JSON.stringify(resObj));
+    props.setProperty('ML_ACCESS_TOKEN_'  + ssId, resObj.access_token);
+    props.setProperty('ML_REFRESH_TOKEN_' + ssId, resObj.refresh_token || '');
+    props.setProperty('ML_EXPIRES_AT_'    + ssId, String(agora + (resObj.expires_in || 21600)));
+    return HtmlService.createHtmlOutput(
+      '<div style="font-family:sans-serif;text-align:center;padding-top:50px;">' +
+      '<h2 style="color:#2e7d32;">✅ Autorização Concluída!</h2>' +
+      '<p>Pode fechar esta aba. Sua planilha será atualizada automaticamente.</p>' +
+      '<script>setTimeout(function(){window.close();},2000);</script>' +
+      '</div>'
+    );
   }
 
-  if (e.parameter.action === 'conectar' && e.parameter.id) {
-    var urlAuth = obterUrlAutorizacao(e.parameter.id);
-    var html = '<div style="font-family:sans-serif; text-align:center; margin-top:50px;">' +
-               '<h2>Integração 360 Gestão</h2>' +
-               '<p>Clique no botão abaixo para autorizar o motor de precificação.</p>' +
-               '<a href="' + urlAuth + '" target="_top" style="background:#FFE600; color:#333; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">Conectar ao Mercado Livre</a>' +
-               '</div>';
-    return HtmlService.createHtmlOutput(html);
-  }
-
-  return HtmlService.createHtmlOutput('Serviço Ativo.');
+  return HtmlService.createHtmlOutput('Erro ao gerar token: ' + JSON.stringify(resObj));
 }
 
 function doPost(e) {
   try {
-    var req = JSON.parse(e.postData.contents);
+    var req   = JSON.parse(e.postData.contents);
+    var props = PropertiesService.getScriptProperties();
+
+    if (req.action === 'registerCsrfState') {
+      props.setProperty('CSRF_' + req.uuid, req.spreadsheetId);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (req.action === 'fetchToken') {
+      var key       = 'TEMP_TOKEN_' + req.spreadsheetId;
+      var tokenData = props.getProperty(key);
+      if (tokenData) {
+        props.deleteProperty(key);
+        return ContentService.createTextOutput(tokenData).setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'WAIT' })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (req.action === 'getConfig') {
+      return ContentService.createTextOutput(JSON.stringify({
+        clientId: props.getProperty('ML_CLIENT_ID')
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
     // 1. Reconstituir db.produtos (ignora cabeçalho)
     var mapPro = {};
