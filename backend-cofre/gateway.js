@@ -16,11 +16,10 @@ function doGet(e) {
   }
 
   if (params.action === 'conectar' && params.id) {
-    var url = obterUrlAutorizacao(params.id);
-    return HtmlService.createHtmlOutput(
-      '<script>window.location.href = "' + url + '";</script>' +
-      '<p>Redirecionando para o Mercado Livre...</p>'
-    );
+    var urlAuth = obterUrlAutorizacao(params.id);
+    var htmlRedirect = "<script>window.top.location.href = '" + urlAuth + "';</script>" +
+                       "<p>Redirecionando para o ambiente seguro do Mercado Livre...</p>";
+    return HtmlService.createHtmlOutput(htmlRedirect);
   }
 
   return HtmlService.createHtmlOutput('<p>Endpoint inativo.</p>');
