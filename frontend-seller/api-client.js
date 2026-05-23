@@ -58,13 +58,14 @@ function _orquestrarMotor(canal) {
     abaCanal.getRange(2, colunaInicio, resposta.precoFinal.length, 13).setValues(resposta.precoFinal);
   }
 
-  // 7. Gravação na TGF_VUNCOM (limpa e regrava)
-  var abaVuncom = ss.getSheetByName('TGF_VUNCOM');
-  if (abaVuncom) {
-    var ultima = abaVuncom.getLastRow();
-    if (ultima > 1) abaVuncom.getRange(2, 1, ultima - 1, 8).clearContent();
+  // 7. Gravação na esteira NF-e isolada por canal (limpa sempre, grava se houver dados)
+  var nomeAbaNfe = (canal === "MLB") ? "TGFNFE_MLB" : "TGFNFE_SHP";
+  var abaNfe = ss.getSheetByName(nomeAbaNfe);
+  if (abaNfe) {
+    var ultimaNfe = abaNfe.getLastRow();
+    if (ultimaNfe > 1) abaNfe.getRange(2, 1, ultimaNfe - 1, 8).clearContent();
     if (resposta.vuncom && resposta.vuncom.length > 0) {
-      abaVuncom.getRange(2, 1, resposta.vuncom.length, 8).setValues(resposta.vuncom);
+      abaNfe.getRange(2, 1, resposta.vuncom.length, 8).setValues(resposta.vuncom);
     }
   }
 
