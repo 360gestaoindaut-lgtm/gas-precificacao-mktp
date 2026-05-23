@@ -122,21 +122,23 @@
     document.getElementById(id).classList[show ? 'remove' : 'add']('hidden');
   }
 
-  function pct(id) {
-    var v = parseFloat(document.getElementById(id).value);
-    return isNaN(v) ? 0 : v / 100;
+  function sanitizarPercentual(valorString) {
+    if (!valorString) return 0;
+    var limpo = String(valorString).replace(',', '.');
+    var numeroDecimal = Number(limpo) / 100;
+    return parseFloat(numeroDecimal.toFixed(4));
   }
 
   function salvar() {
     var regime = document.getElementById('regime').value;
     var dados = {
       regimeTributario: regime,
-      alqPis:        pct('alqPis'),
-      alqCofins:     pct('alqCofins'),
-      irpj:          pct('irpj'),
-      csll:          pct('csll'),
-      cargaSnNormal: pct('cargaSnNormal'),
-      cargaSnSt:     pct('cargaSnSt'),
+      alqPis:        sanitizarPercentual(document.getElementById('alqPis').value),
+      alqCofins:     sanitizarPercentual(document.getElementById('alqCofins').value),
+      irpj:          sanitizarPercentual(document.getElementById('irpj').value),
+      csll:          sanitizarPercentual(document.getElementById('csll').value),
+      cargaSnNormal: sanitizarPercentual(document.getElementById('cargaSnNormal').value),
+      cargaSnSt:     sanitizarPercentual(document.getElementById('cargaSnSt').value),
       tomarCredito:  document.getElementById('tomarCredito').value,
       baseCredito:   document.getElementById('baseCredito').value
     };
