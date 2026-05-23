@@ -21,7 +21,8 @@ function carregarConfigFiscal() {
   if (!props || !props.regimeTributario) return null;
   return {
     regimeTributario: props.regimeTributario,
-    pisCofins:        parseFloat(props.pisCofins)     || 0,
+    alqPis:           parseFloat(props.alqPis)         || 0,
+    alqCofins:        parseFloat(props.alqCofins)      || 0,
     irpj:             parseFloat(props.irpj)           || 0,
     csll:             parseFloat(props.csll)           || 0,
     cargaSnNormal:    parseFloat(props.cargaSnNormal)  || 0,

@@ -53,17 +53,23 @@
     <div class="section-title">Alíquotas — Regime Normal</div>
     <div class="row-2">
       <div class="form-group">
-        <label>PIS + COFINS (%)</label>
-        <input type="number" id="pisCofins" min="0" max="100" step="0.01" placeholder="9.25">
+        <label>PIS (%)</label>
+        <input type="number" id="alqPis" min="0" max="100" step="0.001" placeholder="0.65">
       </div>
+      <div class="form-group">
+        <label>COFINS (%)</label>
+        <input type="number" id="alqCofins" min="0" max="100" step="0.001" placeholder="3.00">
+      </div>
+    </div>
+    <div class="row-2">
       <div class="form-group">
         <label>IRPJ (%)</label>
         <input type="number" id="irpj" min="0" max="100" step="0.01" placeholder="0.00">
       </div>
-    </div>
-    <div class="form-group">
-      <label>CSLL (%)</label>
-      <input type="number" id="csll" min="0" max="100" step="0.01" placeholder="0.00">
+      <div class="form-group">
+        <label>CSLL (%)</label>
+        <input type="number" id="csll" min="0" max="100" step="0.01" placeholder="0.00">
+      </div>
     </div>
   </div>
 
@@ -125,7 +131,8 @@
     var regime = document.getElementById('regime').value;
     var dados = {
       regimeTributario: regime,
-      pisCofins:     pct('pisCofins'),
+      alqPis:        pct('alqPis'),
+      alqCofins:     pct('alqCofins'),
       irpj:          pct('irpj'),
       csll:          pct('csll'),
       cargaSnNormal: pct('cargaSnNormal'),
@@ -162,9 +169,10 @@
       if (!props) return;
       document.getElementById('regime').value = props.regimeTributario || 'Lucro Real';
       onRegimeChange();
-      setField('pisCofins',     props.pisCofins,     100);
-      setField('irpj',          props.irpj,           100);
-      setField('csll',          props.csll,           100);
+      setField('alqPis',        props.alqPis,         100);
+      setField('alqCofins',     props.alqCofins,      100);
+      setField('irpj',          props.irpj,            100);
+      setField('csll',          props.csll,            100);
       setField('cargaSnNormal', props.cargaSnNormal,  100);
       setField('cargaSnSt',     props.cargaSnSt,      100);
       if (props.tomarCredito) document.getElementById('tomarCredito').value = props.tomarCredito;
