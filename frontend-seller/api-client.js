@@ -69,11 +69,29 @@ function tentarCapturarToken() {
   if (data.access_token) {
     PropertiesService.getUserProperties().setProperties({
       access_token:  data.access_token,
-      refresh_token: data.refresh_token || ''
+      refresh_token: data.refresh_token || '',
+      seller_name:   data.nickname || 'Vendedor'
     });
     return 'OK';
   }
   return 'WAIT';
+}
+
+function desconectarML() {
+  var ui = SpreadsheetApp.getUi();
+  var resposta = ui.alert('Desconectar Conta', 'Tem certeza que deseja desvincular a conta atual do Mercado Livre desta planilha?', ui.ButtonSet.YES_NO);
+  if (resposta === ui.Button.YES) {
+    var props = PropertiesService.getUserProperties();
+    props.deleteProperty('access_token');
+    props.deleteProperty('refresh_token');
+    props.deleteProperty('seller_name');
+    ui.alert('Conta Desconectada', 'Aperte F5 para atualizar a página e resetar o menu.', ui.ButtonSet.OK);
+  }
+}
+
+function mostrarStatusConexao() {
+  var nome = PropertiesService.getUserProperties().getProperty('seller_name');
+  SpreadsheetApp.getUi().alert('Status Ativo', 'Operando as requisições sob a conta Mercado Livre: ' + nome, SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 function _orquestrarMotor(canal) {

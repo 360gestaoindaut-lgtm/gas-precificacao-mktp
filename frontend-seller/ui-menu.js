@@ -4,16 +4,25 @@
  * A execução do motor é delegada para api-client.js via UrlFetchApp.
  */
 
-function onOpen() {
-  var ui = SpreadsheetApp.getUi();
-  ui.createMenu('360 Gestão')
-    .addItem('⚡ Recalcular Preços - Mercado Livre', 'acionarMotorMLB')
-    .addItem('⚡ Recalcular Preços - Shopee', 'acionarMotorSHP')
-    .addItem('🔗 Conectar Mercado Livre', 'solicitarVinculoML')
-    .addItem('⚙️ Configurações Fiscais', 'abrirConfigFiscal')
-    .addSeparator()
-    .addItem('ℹ️ Sobre o Motor', 'exibirSobre')
-    .addToUi();
+function onOpen(e) {
+  var ui         = SpreadsheetApp.getUi();
+  var menu       = ui.createMenu('360 Gestão');
+  var nomeSeller = PropertiesService.getUserProperties().getProperty('seller_name');
+
+  if (nomeSeller) {
+    menu.addItem('✅ Logado: ' + nomeSeller, 'mostrarStatusConexao')
+        .addItem('❌ Desconectar Conta', 'desconectarML');
+  } else {
+    menu.addItem('🔗 Conectar Mercado Livre', 'solicitarVinculoML');
+  }
+
+  menu.addSeparator()
+      .addItem('⚡ Recalcular Preços - Mercado Livre', 'acionarMotorMLB')
+      .addItem('⚡ Recalcular Preços - Shopee', 'acionarMotorSHP')
+      .addSeparator()
+      .addItem('⚙️ Configurações Fiscais', 'abrirConfigFiscal')
+      .addItem('ℹ️ Sobre o Motor', 'exibirSobre')
+      .addToUi();
 }
 
 function exibirSobre() {
