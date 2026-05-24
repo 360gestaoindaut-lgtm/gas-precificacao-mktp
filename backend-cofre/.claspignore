@@ -1,0 +1,4 @@
+# Arquivos que não devem ser enviados ao Google Apps Script
+**/*.md
+.gitignore
+.claspignore

@@ -1,0 +1,10 @@
+# Claude Code — configurações locais de máquina
+.claude/
+
+# Variáveis de ambiente locais
+.env
+*.env
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
