@@ -104,8 +104,8 @@ function doPost(e) {
         comprimento:     parseFloat(row[8])  || 0,
         largura:         parseFloat(row[9])  || 0,
         altura:          parseFloat(row[10]) || 0,
-        margemML:        parseFloat(row[11]) || 0,
-        margemSHP:       parseFloat(row[12]) || 0,
+        margemML:        parseFloat(row[11]),
+        margemSHP:       parseFloat(row[12]),
         ipi:             parseFloat(row[13]) || 0,
         regimeIcmsSaida: row[14] || "Débito",
         redBcIcms:       parseFloat(row[15]) || 0
@@ -208,6 +208,9 @@ function doPost(e) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", d.feedback]);
           continue;
         }
+        if (bloco.margemPonderada === 0) {
+          d.feedback += ' ⚠️ Margem de contribuição do anúncio igual a 0%.';
+        }
 
         resultadosPreco.push([
           d.preco, d.custo, d.comissao, d.frete, d.icms, d.difal,
@@ -256,6 +259,9 @@ function doPost(e) {
         if (!dS.sucesso) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", dS.feedback]);
           continue;
+        }
+        if (blocoS.margemPonderada === 0) {
+          dS.feedback += ' ⚠️ Margem de contribuição do anúncio igual a 0%.';
         }
 
         resultadosPreco.push([
