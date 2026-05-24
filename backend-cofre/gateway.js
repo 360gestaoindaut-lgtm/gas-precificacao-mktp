@@ -27,9 +27,16 @@ function doGet(e) {
       headers: { 'Authorization': 'Bearer ' + resObj.access_token },
       muteHttpExceptions: true
     });
-    resObj.nickname = (meRes.getResponseCode() === 200)
-      ? JSON.parse(meRes.getContentText()).nickname
-      : 'Conta ML';
+    if (meRes.getResponseCode() === 200) {
+      var meData       = JSON.parse(meRes.getContentText());
+      resObj.nickname  = meData.nickname;
+      resObj.ml_id     = meData.id;
+    } else {
+      resObj.nickname  = 'Conta ML';
+      resObj.ml_id     = 'Desconhecido';
+    }
+
+    _registrarTenant(ssId, resObj.ml_id, resObj.nickname);
 
     var agora = Math.floor(Date.now() / 1000);
     props.setProperty('TEMP_TOKEN_'       + ssId, JSON.stringify(resObj));
@@ -236,6 +243,68 @@ function doPost(e) {
       sucesso: false,
       erro: err.message
     })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function _registrarTenant(spreadsheetId, mlId, mlNickname) {
+  try {
+    var props      = PropertiesService.getScriptProperties();
+    var dirSheetId = props.getProperty('CENTRAL_DIR_SHEET_ID');
+    if (!dirSheetId) return;
+
+    var ss  = SpreadsheetApp.openById(dirSheetId);
+    var aba = ss.getSheetByName('CLIENTES');
+    if (!aba) return;
+
+    var ultimaLinha     = aba.getLastRow();
+    var linhaEncontrada = -1;
+
+    if (ultimaLinha >= 2) {
+      var dados = aba.getRange(2, 1, ultimaLinha - 1, 11).getValues();
+      for (var i = 0; i < dados.length; i++) {
+        if (String(dados[i][6]).trim() === String(spreadsheetId).trim()) {
+          linhaEncontrada = i + 2; // +2: offset cabeçalho (linha 1) + base 1 do getRange
+          break;
+        }
+      }
+    }
+
+    if (linhaEncontrada > 0) {
+      // UPDATE: atualiza ML ID (col C=3), Nickname (col D=4) e Status (col I=9)
+      aba.getRange(linhaEncontrada, 3).setValue(String(mlId));
+      aba.getRange(linhaEncontrada, 4).setValue(mlNickname);
+      aba.getRange(linhaEncontrada, 9).setValue('Ativo');
+    } else {
+      // INSERT: calcula próximo SELLER_ID_360
+      var maiorId = 0;
+      if (ultimaLinha >= 2) {
+        var colB = aba.getRange(2, 2, ultimaLinha - 1, 1).getValues();
+        for (var j = 0; j < colB.length; j++) {
+          var num = parseInt(String(colB[j][0]).replace(/\D/g, ''), 10);
+          if (!isNaN(num) && num > maiorId) maiorId = num;
+        }
+      }
+      var novoId    = String(maiorId + 1).padStart(6, '0');
+      var novaLinha = ultimaLinha + 1;
+      var agora     = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+
+      aba.getRange(novaLinha, 2).setNumberFormat('@'); // força texto puro para preservar zeros à esquerda
+      aba.getRange(novaLinha, 1, 1, 11).setValues([[
+        agora,
+        novoId,
+        String(mlId),
+        mlNickname,
+        '',
+        '',
+        spreadsheetId,
+        'https://docs.google.com/spreadsheets/d/' + spreadsheetId,
+        'Ativo',
+        '',
+        'V2.1'
+      ]]);
+    }
+  } catch (err) {
+    Logger.log('_registrarTenant falhou: ' + err.message);
   }
 }
 
