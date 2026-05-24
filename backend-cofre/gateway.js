@@ -139,6 +139,11 @@ function doPost(e) {
     var resultadosPreco  = [];
     var resultadosVuncom = [];
 
+    // Sincronização passiva: grava o regime tributário no Diretório Central
+    if (req.spreadsheetId && req.config && req.config.regimeTributario) {
+      _atualizarRegimeTenant(req.spreadsheetId, req.config.regimeTributario);
+    }
+
     // 4. OAuth: injeta reputação real (apenas MLB requer vínculo)
     if (req.canalAlvo === "MLB") {
       var accessToken = obterAccessTokenValido(req.spreadsheetId);
@@ -243,6 +248,31 @@ function doPost(e) {
       sucesso: false,
       erro: err.message
     })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function _atualizarRegimeTenant(spreadsheetId, regime) {
+  var props   = PropertiesService.getScriptProperties();
+  var sheetId = props.getProperty('CENTRAL_DIR_SHEET_ID');
+  if (!sheetId || !regime) return;
+
+  try {
+    var ss    = SpreadsheetApp.openById(sheetId);
+    var sheet = ss.getSheetByName('CLIENTES');
+    if (!sheet) return;
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return;
+
+    var dadosG = sheet.getRange(2, 7, lastRow - 1, 1).getValues();
+    for (var i = 0; i < dadosG.length; i++) {
+      if (String(dadosG[i][0]) === String(spreadsheetId)) {
+        sheet.getRange(i + 2, 10).setValue(regime);
+        break;
+      }
+    }
+  } catch (err) {
+    Logger.log('_atualizarRegimeTenant: ' + err.message);
   }
 }
 
