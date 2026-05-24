@@ -319,6 +319,9 @@ function _validarContrato(anuncio, canal, db) {
 
   var isKit = String(pro.tipoProduto).toUpperCase() === 'KIT';
 
+  if (!isKit && anuncio.tipoMargem === 'Do kit')
+    erros.push('Tipo de margem "Do kit" é inválido para produto Simples (SKU ' + anuncio.sku + '). Use "Do anúncio" ou "Do produto".');
+
   // Dimensões e peso: obrigatórios em todos os tipos (usados no cálculo de frete)
   if (!isPos(pro.pesoKg))
     erros.push('Peso deve ser > 0 (SKU ' + anuncio.sku + ').');
