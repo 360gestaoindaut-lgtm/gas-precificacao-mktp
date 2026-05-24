@@ -288,7 +288,7 @@ function _validarContrato(anuncio, canal, db) {
     var n = Number(val);
     return !isNaN(n) && n >= 0 && n <= 8 && Math.floor(n) === n;
   }
-  function isRegimeValido(val) { return val === 'Débito' || val === 'Isento' || val === 'ST'; }
+  function isRegimeValido(val) { return val === 'Débito' || val === 'Isento' || val === 'Estorno'; }
   function fail(msg) { return { valido: false, feedback: '⚠️ ' + msg }; }
 
   // Nível 1: dados do anúncio
@@ -320,7 +320,7 @@ function _validarContrato(anuncio, canal, db) {
   if (!isOrigemValida(pro.origemProduto))
     return fail('Origem fiscal vazia ou inválida (SKU ' + anuncio.sku + '). Preencha a coluna Origem na TGFPRO (0–8).');
   if (!isRegimeValido(pro.regimeIcmsSaida))
-    return fail('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou ST.');
+    return fail('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou Estorno.');
   if (!isPerc(pro.redBcIcms))
     return fail('Redução BC ICMS inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
   if (!isPerc(pro.ipi))
