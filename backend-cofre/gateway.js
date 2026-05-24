@@ -187,11 +187,21 @@ function doPost(e) {
           continue;
         }
 
-        var bloco = construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCustomizada, "Mercado Livre", db);
-        if (!bloco) {
-          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", "404: SKU não encontrado na TGFPRO."]);
+        var checkML = _validarContrato({
+          sku:           skuAnunciado,
+          qtd:           qtdNoAnuncio,
+          tipoMargem:    tipoMargem,
+          margem:        margemCustomizada,
+          taxaCategoria: taxaCategoriaML,
+          alqDestino:    alqDestino,
+          fecopDestino:  fecopDestino
+        }, "MLB", db);
+        if (!checkML.valido) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", checkML.feedback]);
           continue;
         }
+
+        var bloco = construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCustomizada, "Mercado Livre", db);
 
         var d = calcularPrecoMLB(bloco, db.config, taxaCategoriaML, forcarFreteRapido, alqDestino, fecopDestino);
         if (!d.sucesso) {
@@ -226,11 +236,21 @@ function doPost(e) {
           continue;
         }
 
-        var blocoS = construirBlocoVirtual(skuAnunciadoS, qtdNoAnuncioS, tipoMargemS, margemCustomizadaS, "Shopee", db);
-        if (!blocoS) {
-          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", "404: SKU não encontrado na TGFPRO."]);
+        var checkSHP = _validarContrato({
+          sku:           skuAnunciadoS,
+          qtd:           qtdNoAnuncioS,
+          tipoMargem:    tipoMargemS,
+          margem:        margemCustomizadaS,
+          taxaCategoria: 0,
+          alqDestino:    alqDestinoS,
+          fecopDestino:  fecopDestinoS
+        }, "SHP", db);
+        if (!checkSHP.valido) {
+          resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", checkSHP.feedback]);
           continue;
         }
+
+        var blocoS = construirBlocoVirtual(skuAnunciadoS, qtdNoAnuncioS, tipoMargemS, margemCustomizadaS, "Shopee", db);
 
         var dS = calcularPrecoSHP(blocoS, db.config, alqDestinoS, fecopDestinoS, taxaCampanha);
         if (!dS.sucesso) {
@@ -258,6 +278,94 @@ function doPost(e) {
       erro: err.message
     })).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function _validarContrato(anuncio, canal, db) {
+  function isPerc(val)  { return typeof val === 'number' && !isNaN(val) && val >= 0 && val <= 1; }
+  function isPos(val)   { return typeof val === 'number' && !isNaN(val) && val > 0; }
+  function isOrigemValida(val) {
+    if (val === '' || val === null || val === undefined) return false;
+    var n = Number(val);
+    return !isNaN(n) && n >= 0 && n <= 8 && Math.floor(n) === n;
+  }
+  function isRegimeValido(val) { return val === 'Débito' || val === 'Isento' || val === 'ST'; }
+  function fail(msg) { return { valido: false, feedback: '⚠️ ' + msg }; }
+
+  // Nível 1: dados do anúncio
+  if (!anuncio.qtd || anuncio.qtd < 1)
+    return fail('Qtd inválida no anúncio (SKU ' + anuncio.sku + ').');
+  if (!isPerc(anuncio.alqDestino))
+    return fail('Alíquota ICMS destino inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  if (!isPerc(anuncio.fecopDestino))
+    return fail('FECOP destino inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  if (anuncio.tipoMargem === 'Do anúncio' && !isPerc(anuncio.margem))
+    return fail('Margem "Do anúncio" inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  if (canal === 'MLB' && !isPerc(anuncio.taxaCategoria))
+    return fail('Taxa de categoria ML inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+
+  // Nível 2: TGFPRO
+  var pro = db.produtos[anuncio.sku];
+  if (!pro)
+    return fail('SKU "' + anuncio.sku + '" não encontrado na TGFPRO.');
+  if (!isPos(pro.custoAquisicao))
+    return fail('Custo de aquisição deve ser > 0 (SKU ' + anuncio.sku + ').');
+  if (!isPos(pro.pesoKg))
+    return fail('Peso deve ser > 0 (SKU ' + anuncio.sku + ').');
+  if (!isPos(pro.comprimento))
+    return fail('Comprimento deve ser > 0 (SKU ' + anuncio.sku + ').');
+  if (!isPos(pro.largura))
+    return fail('Largura deve ser > 0 (SKU ' + anuncio.sku + ').');
+  if (!isPos(pro.altura))
+    return fail('Altura deve ser > 0 (SKU ' + anuncio.sku + ').');
+  if (!isOrigemValida(pro.origemProduto))
+    return fail('Origem fiscal vazia ou inválida (SKU ' + anuncio.sku + '). Preencha a coluna Origem na TGFPRO (0–8).');
+  if (!isRegimeValido(pro.regimeIcmsSaida))
+    return fail('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou ST.');
+  if (!isPerc(pro.redBcIcms))
+    return fail('Redução BC ICMS inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  if (!isPerc(pro.ipi))
+    return fail('Alíquota IPI inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  var margemPro = (canal === 'MLB') ? pro.margemML : pro.margemSHP;
+  if (anuncio.tipoMargem === 'Do produto' && !isPerc(margemPro))
+    return fail('Margem do produto inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFPRO.');
+
+  // Nível 3: TGFKIT (somente para kits)
+  if (String(pro.tipoProduto).toUpperCase() === 'KIT') {
+    var componentes = db.kits[anuncio.sku];
+    if (!componentes || componentes.length === 0)
+      return fail('Kit "' + anuncio.sku + '" não possui componentes na TGFKIT.');
+    for (var i = 0; i < componentes.length; i++) {
+      var comp = componentes[i];
+      if (!comp.qtdComponente || comp.qtdComponente < 1)
+        return fail('Qtd inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+      var proComp = db.produtos[comp.skuComponente];
+      if (!proComp)
+        return fail('Componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + ' não encontrado na TGFPRO.');
+      if (!isPos(proComp.custoAquisicao))
+        return fail('Custo do componente "' + comp.skuComponente + '" deve ser > 0.');
+      if (!isPos(proComp.pesoKg))
+        return fail('Peso do componente "' + comp.skuComponente + '" deve ser > 0.');
+      if (!isPos(proComp.comprimento))
+        return fail('Comprimento do componente "' + comp.skuComponente + '" deve ser > 0.');
+      if (!isPos(proComp.largura))
+        return fail('Largura do componente "' + comp.skuComponente + '" deve ser > 0.');
+      if (!isPos(proComp.altura))
+        return fail('Altura do componente "' + comp.skuComponente + '" deve ser > 0.');
+      if (!isOrigemValida(proComp.origemProduto))
+        return fail('Origem fiscal inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+      if (!isRegimeValido(proComp.regimeIcmsSaida))
+        return fail('Regime ICMS inválido no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+      if (!isPerc(proComp.redBcIcms))
+        return fail('Redução BC ICMS inválida no componente "' + comp.skuComponente + '".');
+      if (!isPerc(proComp.ipi))
+        return fail('IPI inválido no componente "' + comp.skuComponente + '".');
+      var margemKit = (canal === 'MLB') ? comp.margemKitML : comp.margemKitSHP;
+      if (anuncio.tipoMargem === 'Do kit' && !isPerc(margemKit))
+        return fail('Margem do kit inválida no componente "' + comp.skuComponente + '" (kit ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFKIT.');
+    }
+  }
+
+  return { valido: true, feedback: 'OK' };
 }
 
 function _atualizarRegimeTenant(spreadsheetId, regime) {
