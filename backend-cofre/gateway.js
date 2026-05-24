@@ -289,91 +289,99 @@ function _validarContrato(anuncio, canal, db) {
     return !isNaN(n) && n >= 0 && n <= 8 && Math.floor(n) === n;
   }
   function isRegimeValido(val) { return val === 'Débito' || val === 'Isento' || val === 'Estorno'; }
-  function fail(msg) { return { valido: false, feedback: '⚠️ ' + msg }; }
+
+  var erros = [];
 
   // Nível 1: dados do anúncio
   if (!anuncio.qtd || anuncio.qtd < 1)
-    return fail('Qtd inválida no anúncio (SKU ' + anuncio.sku + ').');
+    erros.push('Qtd inválida no anúncio (SKU ' + anuncio.sku + ').');
   if (!isPerc(anuncio.alqDestino))
-    return fail('Alíquota ICMS destino inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+    erros.push('Alíquota ICMS destino inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
   if (!isPerc(anuncio.fecopDestino))
-    return fail('FECOP destino inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+    erros.push('FECOP destino inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
   if (anuncio.tipoMargem === 'Do anúncio' && !isPerc(anuncio.margem))
-    return fail('Margem "Do anúncio" inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+    erros.push('Margem "Do anúncio" inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
   if (canal === 'MLB' && !isPerc(anuncio.taxaCategoria))
-    return fail('Taxa de categoria ML inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+    erros.push('Taxa de categoria ML inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
 
-  // Nível 2: TGFPRO
+  // Nível 2: TGFPRO — SKU ausente é bloqueador: interrompe aqui
   var pro = db.produtos[anuncio.sku];
-  if (!pro)
-    return fail('SKU "' + anuncio.sku + '" não encontrado na TGFPRO.');
+  if (!pro) {
+    erros.push('SKU "' + anuncio.sku + '" não encontrado na TGFPRO.');
+    return { valido: false, feedback: '⚠️ ' + erros.join(' | ') };
+  }
 
   var isKit = String(pro.tipoProduto).toUpperCase() === 'KIT';
 
   // Dimensões e peso: obrigatórios em todos os tipos (usados no cálculo de frete)
   if (!isPos(pro.pesoKg))
-    return fail('Peso deve ser > 0 (SKU ' + anuncio.sku + ').');
+    erros.push('Peso deve ser > 0 (SKU ' + anuncio.sku + ').');
   if (!isPos(pro.comprimento))
-    return fail('Comprimento deve ser > 0 (SKU ' + anuncio.sku + ').');
+    erros.push('Comprimento deve ser > 0 (SKU ' + anuncio.sku + ').');
   if (!isPos(pro.largura))
-    return fail('Largura deve ser > 0 (SKU ' + anuncio.sku + ').');
+    erros.push('Largura deve ser > 0 (SKU ' + anuncio.sku + ').');
   if (!isPos(pro.altura))
-    return fail('Altura deve ser > 0 (SKU ' + anuncio.sku + ').');
+    erros.push('Altura deve ser > 0 (SKU ' + anuncio.sku + ').');
 
   // Campos fiscais: apenas para Simples — kits herdam dos seus componentes (Nível 3)
   if (!isKit) {
     if (!isPos(pro.custoAquisicao))
-      return fail('Custo de aquisição deve ser > 0 (SKU ' + anuncio.sku + ').');
+      erros.push('Custo de aquisição deve ser > 0 (SKU ' + anuncio.sku + ').');
     if (!isOrigemValida(pro.origemProduto))
-      return fail('Origem fiscal vazia ou inválida (SKU ' + anuncio.sku + '). Preencha a coluna Origem na TGFPRO (0–8).');
+      erros.push('Origem fiscal vazia ou inválida (SKU ' + anuncio.sku + '). Preencha a coluna Origem na TGFPRO (0–8).');
     if (!isRegimeValido(pro.regimeIcmsSaida))
-      return fail('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou Estorno.');
+      erros.push('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou Estorno.');
     if (!isPerc(pro.redBcIcms))
-      return fail('Redução BC ICMS inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+      erros.push('Redução BC ICMS inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
     if (!isPerc(pro.ipi))
-      return fail('Alíquota IPI inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+      erros.push('Alíquota IPI inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
   }
 
   var margemPro = (canal === 'MLB') ? pro.margemML : pro.margemSHP;
   if (anuncio.tipoMargem === 'Do produto' && !isPerc(margemPro))
-    return fail('Margem do produto inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFPRO.');
+    erros.push('Margem do produto inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFPRO.');
 
   // Nível 3: TGFKIT (somente para kits)
   if (isKit) {
     var componentes = db.kits[anuncio.sku];
-    if (!componentes || componentes.length === 0)
-      return fail('Kit "' + anuncio.sku + '" não possui componentes na TGFKIT.');
-    for (var i = 0; i < componentes.length; i++) {
-      var comp = componentes[i];
-      if (!comp.qtdComponente || comp.qtdComponente < 1)
-        return fail('Qtd inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
-      var proComp = db.produtos[comp.skuComponente];
-      if (!proComp)
-        return fail('Componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + ' não encontrado na TGFPRO.');
-      if (!isPos(proComp.custoAquisicao))
-        return fail('Custo do componente "' + comp.skuComponente + '" deve ser > 0.');
-      if (!isPos(proComp.pesoKg))
-        return fail('Peso do componente "' + comp.skuComponente + '" deve ser > 0.');
-      if (!isPos(proComp.comprimento))
-        return fail('Comprimento do componente "' + comp.skuComponente + '" deve ser > 0.');
-      if (!isPos(proComp.largura))
-        return fail('Largura do componente "' + comp.skuComponente + '" deve ser > 0.');
-      if (!isPos(proComp.altura))
-        return fail('Altura do componente "' + comp.skuComponente + '" deve ser > 0.');
-      if (!isOrigemValida(proComp.origemProduto))
-        return fail('Origem fiscal inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
-      if (!isRegimeValido(proComp.regimeIcmsSaida))
-        return fail('Regime ICMS inválido no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
-      if (!isPerc(proComp.redBcIcms))
-        return fail('Redução BC ICMS inválida no componente "' + comp.skuComponente + '".');
-      if (!isPerc(proComp.ipi))
-        return fail('IPI inválido no componente "' + comp.skuComponente + '".');
-      var margemKit = (canal === 'MLB') ? comp.margemKitML : comp.margemKitSHP;
-      if (anuncio.tipoMargem === 'Do kit' && !isPerc(margemKit))
-        return fail('Margem do kit inválida no componente "' + comp.skuComponente + '" (kit ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFKIT.');
+    if (!componentes || componentes.length === 0) {
+      erros.push('Kit "' + anuncio.sku + '" não possui componentes na TGFKIT.');
+    } else {
+      for (var i = 0; i < componentes.length; i++) {
+        var comp = componentes[i];
+        if (!comp.qtdComponente || comp.qtdComponente < 1)
+          erros.push('Qtd inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+        var proComp = db.produtos[comp.skuComponente];
+        if (!proComp) {
+          erros.push('Componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + ' não encontrado na TGFPRO.');
+          continue;
+        }
+        if (!isPos(proComp.custoAquisicao))
+          erros.push('Custo do componente "' + comp.skuComponente + '" deve ser > 0.');
+        if (!isPos(proComp.pesoKg))
+          erros.push('Peso do componente "' + comp.skuComponente + '" deve ser > 0.');
+        if (!isPos(proComp.comprimento))
+          erros.push('Comprimento do componente "' + comp.skuComponente + '" deve ser > 0.');
+        if (!isPos(proComp.largura))
+          erros.push('Largura do componente "' + comp.skuComponente + '" deve ser > 0.');
+        if (!isPos(proComp.altura))
+          erros.push('Altura do componente "' + comp.skuComponente + '" deve ser > 0.');
+        if (!isOrigemValida(proComp.origemProduto))
+          erros.push('Origem fiscal inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+        if (!isRegimeValido(proComp.regimeIcmsSaida))
+          erros.push('Regime ICMS inválido no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+        if (!isPerc(proComp.redBcIcms))
+          erros.push('Redução BC ICMS inválida no componente "' + comp.skuComponente + '".');
+        if (!isPerc(proComp.ipi))
+          erros.push('IPI inválido no componente "' + comp.skuComponente + '".');
+        var margemKit = (canal === 'MLB') ? comp.margemKitML : comp.margemKitSHP;
+        if (anuncio.tipoMargem === 'Do kit' && !isPerc(margemKit))
+          erros.push('Margem do kit inválida no componente "' + comp.skuComponente + '" (kit ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFKIT.');
+      }
     }
   }
 
+  if (erros.length > 0) return { valido: false, feedback: '⚠️ ' + erros.join(' | ') };
   return { valido: true, feedback: 'OK' };
 }
 
