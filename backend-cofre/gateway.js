@@ -34,7 +34,7 @@ function doGet(e) {
 
       var levelId = meData.seller_reputation ? meData.seller_reputation.level_id : null;
       if      (levelId === '5_green')       resObj.reputacao = '🟢 Verde';
-      else if (levelId === '4_light_green') resObj.reputacao = '🍏 Verde Claro';
+      else if (levelId === '4_light_green') resObj.reputacao = '🟢 Verde Claro';
       else if (levelId === '3_yellow')      resObj.reputacao = '🟡 Amarela';
       else if (levelId === '2_orange')      resObj.reputacao = '🟠 Laranja';
       else if (levelId === '1_red')         resObj.reputacao = '🔴 Vermelha';
