@@ -99,8 +99,8 @@ function construirBlocoVirtual(skuAnunciado, qtdNoAnuncio, tipoMargem, margemCus
         }
       }
       else {
-        // Tática "Do produto": puxa direto da TGFPRO respeitando o canal
-        margemDestaParte = (canalRequisitado === "Shopee") ? dadosComp.margemSHP : dadosComp.margemML;
+        // "Do produto": usa a margem do kit (prodMaster) na TGFPRO, propagada uniformemente a todos os componentes
+        margemDestaParte = (canalRequisitado === "Shopee") ? prodMaster.margemSHP : prodMaster.margemML;
       }
 
       var lucroParte = custoParte * margemDestaParte;
