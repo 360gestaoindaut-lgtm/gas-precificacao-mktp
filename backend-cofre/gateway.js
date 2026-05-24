@@ -121,7 +121,7 @@ function doPost(e) {
       if (!mapKit[skuKit]) mapKit[skuKit] = [];
       mapKit[skuKit].push({
         skuComponente: rowKit[1],
-        qtdComponente: parseFloat(rowKit[2]) || 1,
+        qtdComponente: parseFloat(rowKit[2]),
         margemKitML:   rowKit[3] !== "" ? parseFloat(rowKit[3]) : null,
         margemKitSHP:  rowKit[4] !== "" ? parseFloat(rowKit[4]) : null
       });
@@ -350,7 +350,7 @@ function _validarContrato(anuncio, canal, db) {
       for (var i = 0; i < componentes.length; i++) {
         var comp = componentes[i];
         if (!comp.qtdComponente || comp.qtdComponente < 1)
-          erros.push('Qtd inválida no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '.');
+          erros.push('Qtd inválida ou zerada no componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + '. Preencha a coluna QTD_COMPONENTE (col C da TGFKIT) com um valor >= 1.');
         var proComp = db.produtos[comp.skuComponente];
         if (!proComp) {
           erros.push('Componente "' + comp.skuComponente + '" do kit ' + anuncio.sku + ' não encontrado na TGFPRO.');
