@@ -9,14 +9,18 @@ function onOpen(e) {
   var menu = ui.createMenu('360 Gestão');
 
   var nomeSeller = null;
+  var repSeller  = null;
   try {
-    nomeSeller = PropertiesService.getDocumentProperties().getProperty('seller_name');
+    var docProps = PropertiesService.getDocumentProperties();
+    nomeSeller   = docProps.getProperty('seller_name');
+    repSeller    = docProps.getProperty('seller_reputation') || '';
   } catch (err) {
     nomeSeller = null;
   }
 
   if (nomeSeller) {
-    menu.addItem('✅ Logado: ' + nomeSeller, 'mostrarStatusConexao')
+    var tituloMenu = '✅ ' + nomeSeller + (repSeller ? ' [' + repSeller + ']' : '');
+    menu.addItem(tituloMenu, 'mostrarStatusConexao')
         .addItem('❌ Desconectar Conta', 'desconectarML');
   } else {
     menu.addItem('🔗 Conectar Mercado Livre', 'solicitarVinculoML');

@@ -69,9 +69,10 @@ function tentarCapturarToken() {
   if (data.access_token) {
     PropertiesService.getUserProperties().deleteAllProperties();
     PropertiesService.getDocumentProperties().setProperties({
-      access_token:  data.access_token,
-      refresh_token: data.refresh_token || '',
-      seller_name:   data.nickname || 'Vendedor'
+      access_token:      data.access_token,
+      refresh_token:     data.refresh_token || '',
+      seller_name:       data.nickname    || 'Vendedor',
+      seller_reputation: data.reputacao   || '⚪ S/ Reputação'
     });
     return 'OK';
   }
@@ -86,6 +87,7 @@ function desconectarML() {
     props.deleteProperty('access_token');
     props.deleteProperty('refresh_token');
     props.deleteProperty('seller_name');
+    props.deleteProperty('seller_reputation');
     ui.alert('Conta Desconectada', 'Aperte F5 para atualizar a página e resetar o menu.', ui.ButtonSet.OK);
   }
 }
