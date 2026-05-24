@@ -307,8 +307,10 @@ function _validarContrato(anuncio, canal, db) {
   var pro = db.produtos[anuncio.sku];
   if (!pro)
     return fail('SKU "' + anuncio.sku + '" não encontrado na TGFPRO.');
-  if (!isPos(pro.custoAquisicao))
-    return fail('Custo de aquisição deve ser > 0 (SKU ' + anuncio.sku + ').');
+
+  var isKit = String(pro.tipoProduto).toUpperCase() === 'KIT';
+
+  // Dimensões e peso: obrigatórios em todos os tipos (usados no cálculo de frete)
   if (!isPos(pro.pesoKg))
     return fail('Peso deve ser > 0 (SKU ' + anuncio.sku + ').');
   if (!isPos(pro.comprimento))
@@ -317,20 +319,27 @@ function _validarContrato(anuncio, canal, db) {
     return fail('Largura deve ser > 0 (SKU ' + anuncio.sku + ').');
   if (!isPos(pro.altura))
     return fail('Altura deve ser > 0 (SKU ' + anuncio.sku + ').');
-  if (!isOrigemValida(pro.origemProduto))
-    return fail('Origem fiscal vazia ou inválida (SKU ' + anuncio.sku + '). Preencha a coluna Origem na TGFPRO (0–8).');
-  if (!isRegimeValido(pro.regimeIcmsSaida))
-    return fail('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou Estorno.');
-  if (!isPerc(pro.redBcIcms))
-    return fail('Redução BC ICMS inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
-  if (!isPerc(pro.ipi))
-    return fail('Alíquota IPI inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+
+  // Campos fiscais: apenas para Simples — kits herdam dos seus componentes (Nível 3)
+  if (!isKit) {
+    if (!isPos(pro.custoAquisicao))
+      return fail('Custo de aquisição deve ser > 0 (SKU ' + anuncio.sku + ').');
+    if (!isOrigemValida(pro.origemProduto))
+      return fail('Origem fiscal vazia ou inválida (SKU ' + anuncio.sku + '). Preencha a coluna Origem na TGFPRO (0–8).');
+    if (!isRegimeValido(pro.regimeIcmsSaida))
+      return fail('Regime ICMS "' + pro.regimeIcmsSaida + '" inválido (SKU ' + anuncio.sku + '). Use: Débito, Isento ou Estorno.');
+    if (!isPerc(pro.redBcIcms))
+      return fail('Redução BC ICMS inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+    if (!isPerc(pro.ipi))
+      return fail('Alíquota IPI inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  }
+
   var margemPro = (canal === 'MLB') ? pro.margemML : pro.margemSHP;
   if (anuncio.tipoMargem === 'Do produto' && !isPerc(margemPro))
     return fail('Margem do produto inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1 na TGFPRO.');
 
   // Nível 3: TGFKIT (somente para kits)
-  if (String(pro.tipoProduto).toUpperCase() === 'KIT') {
+  if (isKit) {
     var componentes = db.kits[anuncio.sku];
     if (!componentes || componentes.length === 0)
       return fail('Kit "' + anuncio.sku + '" não possui componentes na TGFKIT.');
