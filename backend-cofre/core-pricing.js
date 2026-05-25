@@ -173,20 +173,9 @@ function calcularPrecoMLB(blocoVirtual, config, taxaCategoriaML, forcarFreteRapi
   var fatorFederaisAjustado = 0;
 
   if (config.regimeTributario === "Simples Nacional") {
-    // LÓGICA EXCLUSIVA: SIMPLES NACIONAL
-    // 1. Imunidade de DIFAL (Tema 517 STF)
     difal = 0;
-
-    // 2. O ICMS próprio já está embutido no DAS, então zeramos o caixa para evitar bitributação
     cargaIcmsCaixa = 0;
-
-    // 3. Segregação de Receitas (CSOSN)
-    var regimeFormatado = String(regimeIcmsSaida).trim();
-    if (regimeFormatado === "Débito") {
-      fatorFederaisAjustado = config.cargaSnNormal;
-    } else { // "Estorno" ou "Isento"
-      fatorFederaisAjustado = config.cargaSnSt;
-    }
+    fatorFederaisAjustado = blocoVirtual.simplesNacionalPonderado;
 
   } else {
     // LÓGICA DO REGIME NORMAL (Presumido ou Real)
@@ -210,11 +199,6 @@ function calcularPrecoMLB(blocoVirtual, config, taxaCategoriaML, forcarFreteRapi
   if (config.regimeTributario === "Lucro Real" && config.tomarCredito && config.baseCredito === "Frete + Comissões") {
     taxaEfetivaML = taxaCategoriaML * (1 - config.pisCofins);
   }
-
-  var divisor = 1 - (taxaEfetivaML + blocoVirtual.margemPonderada + cargaIcmsCaixa + difal + fatorFederaisAjustado + cargaIpiEfetiva);
-
-  // --- 1. CARGA TRIBUTÁRIA E DIVISOR ---
-  // ... [cálculos de impostos, difal e Tese do Século] ...
 
   var somaCustosVariaveis = taxaEfetivaML + cargaIcmsCaixa + difal + fatorFederaisAjustado + cargaIpiEfetiva;
   var divisor = 1 - (somaCustosVariaveis + blocoVirtual.margemPonderada);

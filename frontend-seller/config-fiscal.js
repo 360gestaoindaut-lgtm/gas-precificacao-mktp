@@ -16,7 +16,7 @@ function carregarConfigFiscal() {
 }
 
 function debugVariaveisInvisiveis() {
-  var memoria = PropertiesService.getUserProperties().getProperties();
+  var memoria = PropertiesService.getDocumentProperties().getProperties();
   console.log("Banco de Dados do Usuário Ativo:");
   console.log(JSON.stringify(memoria, null, 2));
 }
