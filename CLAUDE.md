@@ -26,6 +26,7 @@ Deployed as a GAS **Web App** (`ANYONE_ANONYMOUS`, `executeAs: USER_DEPLOYING`).
   - `registerCsrfState` — stores UUID → spreadsheetId for CSRF validation
   - `fetchToken` — polling endpoint; returns temp token once OAuth completes
   - `getConfig` — returns `ML_CLIENT_ID` to frontend
+  - `setMockEnv` — sandbox: writes `MOCK_<tier>` as access token with 24h TTL; no real ML token involved
   - _(no action field)_ — pricing engine: validates payload, builds `db`, runs `_validarContrato`, calls `construirBlocoVirtual` + `calcularPrecoMLB`/`calcularPrecoSHP`, returns DRE + NF-e staging data
   - `_validarContrato(anuncio, canal, db)` — 3-level cascading validator (announcement → TGFPRO → TGFKIT); accumulates **all** errors before returning, never stops at the first failure
   - `_registrarTenant` / `_atualizarRegimeTenant` — upserts tenant directory in central `CLIENTES` spreadsheet
@@ -45,8 +46,8 @@ Deployed as a GAS **Web App** (`ANYONE_ANONYMOUS`, `executeAs: USER_DEPLOYING`).
 
 Container-bound script in Google Sheets. Files:
 
-- **`ui-menu.js`** — `onOpen()` builds dynamic menu showing seller name + reputation (read from DocumentProperties). Menu items: connect/disconnect ML, recalculate MLB/SHP, fiscal config, about.
-- **`api-client.js`** — `_orquestrarMotor(canal)` reads sheets, POSTs payload to backend, writes DRE back to `TGFMLB`/`TGFSHP` and NF-e data to `TGFNFE_MLB`/`TGFNFE_SHP`. Also handles OAuth flow (Token Parking pattern).
+- **`ui-menu.js`** — `onOpen()` builds dynamic menu showing seller name + reputation (read from DocumentProperties). Menu items: connect/disconnect ML, recalculate MLB/SHP, fiscal config, about. Conditionally adds `🧪 Sandbox de Homologação` submenu only when `SpreadsheetApp.getActiveSpreadsheet().getId() === MASTER_SPREADSHEET_ID`; copies of the spreadsheet never see it.
+- **`api-client.js`** — `_orquestrarMotor(canal)` reads sheets, POSTs payload to backend, writes DRE back to `TGFMLB`/`TGFSHP` and NF-e data to `TGFNFE_MLB`/`TGFNFE_SHP`. Also handles OAuth flow (Token Parking pattern). Contains sandbox helpers: `ativarSandboxLocal(tier, nomeVisual, emojiVisual)` + 8 `simular*()` wrappers (one per ML reputation level).
 - **`config-fiscal.js`** — `salvarConfigFiscal` / `carregarConfigFiscal` persist fiscal config as a single JSON blob under key `CONFIG_FISCAL_360` in DocumentProperties.
 - **`sidebar-fiscal.html`** — self-contained sidebar UI for fiscal configuration.
 
@@ -56,6 +57,33 @@ Container-bound script in Google Sheets. Files:
 2. Frontend opens ML auth URL with UUID as `state`, opens modal with polling JS
 3. ML redirects to backend `doGet` → backend exchanges code → stores result in `TEMP_TOKEN_{ssId}`
 4. Frontend polls `fetchToken` every 3s → on success, writes ML tokens + seller info to DocumentProperties
+
+## Sandbox de Homologação
+
+Allows testing the full MLB pricing flow against any reputation tier without a real ML account connected and without risk of token revocation.
+
+**How it works:**
+1. Frontend calls `setMockEnv` on the backend → backend writes `MOCK_<tier>` (e.g. `MOCK_Verde`) as `ML_ACCESS_TOKEN_<ssId>` with a 24h TTL in ScriptProperties
+2. Frontend writes matching state to DocumentProperties (`seller_name`, `seller_reputation`) so the menu reflects the simulated account
+3. On the next MLB calculation, `obterAccessTokenValido` returns the `MOCK_` string; the detector in `doPost` bypasses `buscarReputacaoMercadoLivre` and injects the tier directly into `db.config.reputacao`
+
+**Feature flag — visibility trava:**
+`MASTER_SPREADSHEET_ID` in `ui-menu.js` is the sole gate. The sandbox submenu only renders when the active spreadsheet ID matches this constant. Copies of the spreadsheet made after this feature was added have the code but a different ID, so the submenu never appears. Copies made before the feature was added don't have the code at all.
+
+**Simulated tiers (8 options, covering all ML reputation levels):**
+
+| Function | `tier` injected | Display label |
+|---|---|---|
+| `simularLiderGold()` | `'Verde'` | `🏆 Líder Gold` |
+| `simularLiderPlatinum()` | `'Verde'` | `💎 Líder Platinum` |
+| `simularVerde()` | `'Verde'` | `🟢 Verde` |
+| `simularVerdeClaro()` | `'Verde'` | `🟢 Verde Claro` |
+| `simularAmarela()` | `'Amarela'` | `🟡 Amarela` |
+| `simularLaranja()` | `'Sem Reputação'` | `🟠 Laranja` |
+| `simularVermelha()` | `'Sem Reputação'` | `🔴 Vermelha` |
+| `simularCinza()` | `'Verde'` | `⚪ Cinza` |
+
+**Key invariant:** `MOCK_` tokens are never refreshed by `obterAccessTokenValido` — they pass through the `agora < expiresAt - 300` check (24h TTL) and have no `refresh_token` path. To exit sandbox mode, connect a real ML account via `solicitarVinculoML`.
 
 ## Reputation Mapping (Two-Layer Design)
 
@@ -133,3 +161,5 @@ base_PIS_COFINS = receita − IPI − ICMS_destaque − DIFAL  // Tese do Sécul
 - Regime ICMS saída: valores válidos são `"Débito"`, `"Isento"`, `"Estorno"` (nunca `"ST"`).
 - Origem ICMS: inteiro `0–8`; célula vazia falha `isOrigemValida()` explicitamente.
 - Kit pricing: ponderação fiscal por `valorAlvoAbsoluto` (custo + lucro alvo por componente), não por quantidade.
+- `ML_ACCESS_TOKEN_<ssId>` prefixado com `MOCK_` sinaliza modo sandbox — nunca tratar como token real nem tentar refresh. O sufixo após `MOCK_` é o tier de reputação a injetar.
+- `MASTER_SPREADSHEET_ID` em `ui-menu.js` — atualizar esta constante se a planilha MASTER for recriada.

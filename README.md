@@ -62,6 +62,7 @@ base_PIS/COFINS = receita − IPI − ICMS_destaque − DIFAL   ← Tese do Séc
 - **Regimes tributários** — Simples Nacional (com imunidade de DIFAL e segregação CSOSN), Lucro Presumido, Lucro Real (com crédito de PIS/COFINS sobre frete e comissões)
 - **Validador em cascata** — 3 níveis (anúncio → TGFPRO → TGFKIT); acumula todos os erros antes de retornar; bloqueia combinações inválidas
 - **OAuth 2.0 multi-tenant** — padrão Token Parking (sem biblioteca OAuth2, sem iframe); menu dinâmico com nome e reputação exata do seller (Líder Gold, Líder Platinum, MercadoLíder, Verde, Verde Claro, Amarela, Laranja, Vermelha, Cinza); camada de exibição independente da camada de cálculo
+- **Sandbox de Homologação** — ambiente de simulação isolado na planilha MASTER; testa qualquer tier de reputação (Líder Gold, Verde, Amarela, Laranja etc.) sem conta ML conectada e sem risco de revogação de tokens; protegido por feature flag baseada no ID da planilha (invisível em cópias de clientes)
 - **Diretório central de tenants** — upsert automático na planilha `CLIENTES` a cada novo vínculo OAuth; sincronização passiva do regime tributário
 - **Staging NF-e** — rateio proporcional de preço e frete entre componentes de kits para geração de XML
 
