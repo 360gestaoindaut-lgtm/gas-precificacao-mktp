@@ -94,7 +94,8 @@ base_PIS_COFINS = receita − IPI − ICMS_destaque − DIFAL  // Tese do Sécul
 - **No `onEdit` handlers** — never reintroduce reactive sheet logic.
 - **DocumentProperties** for all session/config state (ML tokens + fiscal config). Never UserProperties — causa instabilidade em contas multi-perfil.
 - Fiscal config stored as single JSON blob under key `CONFIG_FISCAL_360` (namespaced to avoid collision with OAuth keys).
-- `margemML` / `margemSHP` carregados sem `|| 0` — preservar `NaN` para células vazias; o validador distingue vazio (erro) de zero explícito (aviso).
+- `margemML` / `margemSHP` carregados sem `|| 0` — preservar `NaN` para células vazias; o validador distingue vazio (erro) de zero explícito (aviso de margem 0% no feedback).
+- Campos booleanos `FRETE_RAPIDO_SUB_79` (col I TGFMLB) e `CAMPANHA_SHOPEE` (col H TGFSHP) sem coerção — o raw string é passado ao validador; apenas `"SIM"` / `"NÃO"` são aceitos. Célula vazia gera erro.
 - Regime ICMS saída: valores válidos são `"Débito"`, `"Isento"`, `"Estorno"` (nunca `"ST"`).
 - Origem ICMS: inteiro `0–8`; célula vazia falha `isOrigemValida()` explicitamente.
 - Kit pricing: ponderação fiscal por `valorAlvoAbsoluto` (custo + lucro alvo por componente), não por quantidade.
