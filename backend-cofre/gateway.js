@@ -180,7 +180,8 @@ function doPost(e) {
         var taxaCategoriaML   = parseFloat(l[5]);
         var alqDestino        = parseFloat(l[6]);
         var fecopDestino      = parseFloat(l[7]);
-        var forcarFreteRapido = (String(l[8]).trim().toUpperCase() === "SIM");
+        var forcarFreteRapidoRaw = String(l[8]).trim().toUpperCase();
+        var forcarFreteRapido    = (forcarFreteRapidoRaw === "SIM");
 
         if (!skuAnunciado) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
@@ -188,13 +189,14 @@ function doPost(e) {
         }
 
         var checkML = _validarContrato({
-          sku:           skuAnunciado,
-          qtd:           qtdNoAnuncio,
-          tipoMargem:    tipoMargem,
-          margem:        margemCustomizada,
-          taxaCategoria: taxaCategoriaML,
-          alqDestino:    alqDestino,
-          fecopDestino:  fecopDestino
+          sku:              skuAnunciado,
+          qtd:              qtdNoAnuncio,
+          tipoMargem:       tipoMargem,
+          margem:           margemCustomizada,
+          taxaCategoria:    taxaCategoriaML,
+          alqDestino:       alqDestino,
+          fecopDestino:     fecopDestino,
+          forcarFreteRapido: forcarFreteRapidoRaw
         }, "MLB", db);
         if (!checkML.valido) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", checkML.feedback]);
@@ -232,7 +234,8 @@ function doPost(e) {
         var margemCustomizadaS = parseFloat(s[4]);
         var alqDestinoS        = parseFloat(s[5]);
         var fecopDestinoS      = parseFloat(s[6]);
-        var taxaCampanha       = (String(s[7]).trim().toUpperCase() === "SIM") ? 0.025 : 0;
+        var flagCampanhaRaw = String(s[7]).trim().toUpperCase();
+        var taxaCampanha    = (flagCampanhaRaw === "SIM") ? 0.025 : 0;
 
         if (!skuAnunciadoS) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
@@ -240,13 +243,14 @@ function doPost(e) {
         }
 
         var checkSHP = _validarContrato({
-          sku:           skuAnunciadoS,
-          qtd:           qtdNoAnuncioS,
-          tipoMargem:    tipoMargemS,
-          margem:        margemCustomizadaS,
+          sku:          skuAnunciadoS,
+          qtd:          qtdNoAnuncioS,
+          tipoMargem:   tipoMargemS,
+          margem:       margemCustomizadaS,
           taxaCategoria: 0,
-          alqDestino:    alqDestinoS,
-          fecopDestino:  fecopDestinoS
+          alqDestino:   alqDestinoS,
+          fecopDestino: fecopDestinoS,
+          flagCampanha: flagCampanhaRaw
         }, "SHP", db);
         if (!checkSHP.valido) {
           resultadosPreco.push(["", "", "", "", "", "", "", "", "", "", "", "", checkSHP.feedback]);
@@ -309,6 +313,10 @@ function _validarContrato(anuncio, canal, db) {
     erros.push('Margem "Do anúncio" inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
   if (canal === 'MLB' && !isPerc(anuncio.taxaCategoria))
     erros.push('Taxa de categoria ML inválida (SKU ' + anuncio.sku + '). Informe um valor entre 0 e 1.');
+  if (canal === 'MLB' && anuncio.forcarFreteRapido !== 'SIM' && anuncio.forcarFreteRapido !== 'NÃO' && anuncio.forcarFreteRapido !== 'NAO')
+    erros.push('Campo FRETE_RAPIDO_SUB_79 inválido (SKU ' + anuncio.sku + '). Informe "SIM" ou "NÃO" na coluna I da TGFMLB.');
+  if (canal === 'SHP' && anuncio.flagCampanha !== 'SIM' && anuncio.flagCampanha !== 'NÃO' && anuncio.flagCampanha !== 'NAO')
+    erros.push('Campo CAMPANHA_SHOPEE inválido (SKU ' + anuncio.sku + '). Informe "SIM" ou "NÃO" na coluna H da TGFSHP.');
 
   // Nível 2: TGFPRO — SKU ausente é bloqueador: interrompe aqui
   var pro = db.produtos[anuncio.sku];
