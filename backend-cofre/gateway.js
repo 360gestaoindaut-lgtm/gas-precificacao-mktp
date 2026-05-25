@@ -32,8 +32,14 @@ function doGet(e) {
       resObj.nickname = meData.nickname;
       resObj.ml_id    = meData.id;
 
-      var levelId = meData.seller_reputation ? meData.seller_reputation.level_id : null;
-      if      (levelId === '5_green')       resObj.reputacao = '🟢 Verde';
+      var rep         = meData.seller_reputation || {};
+      var levelId     = rep.level_id            || null;
+      var powerStatus = rep.power_seller_status  || null;
+
+      if      (powerStatus === 'gold')      resObj.reputacao = '🏆 Líder Gold';
+      else if (powerStatus === 'platinum')  resObj.reputacao = '💎 Líder Platinum';
+      else if (powerStatus)                 resObj.reputacao = '🏆 MercadoLíder';
+      else if (levelId === '5_green')       resObj.reputacao = '🟢 Verde';
       else if (levelId === '4_light_green') resObj.reputacao = '🟢 Verde Claro';
       else if (levelId === '3_yellow')      resObj.reputacao = '🟡 Amarela';
       else if (levelId === '2_orange')      resObj.reputacao = '🟠 Laranja';
