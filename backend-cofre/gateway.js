@@ -174,12 +174,12 @@ function doPost(e) {
         var l = dadosAnuncios[k];
         var idAnuncio         = l[0];
         var skuAnunciado      = l[1];
-        var qtdNoAnuncio      = parseFloat(l[2]) || 1;
+        var qtdNoAnuncio      = parseFloat(l[2]);
         var tipoMargem        = l[3];
-        var margemCustomizada = parseFloat(l[4]) || 0;
-        var taxaCategoriaML   = parseFloat(l[5]) || 0;
-        var alqDestino        = parseFloat(l[6]) || 0;
-        var fecopDestino      = parseFloat(l[7]) || 0;
+        var margemCustomizada = parseFloat(l[4]);
+        var taxaCategoriaML   = parseFloat(l[5]);
+        var alqDestino        = parseFloat(l[6]);
+        var fecopDestino      = parseFloat(l[7]);
         var forcarFreteRapido = (String(l[8]).trim().toUpperCase() === "SIM");
 
         if (!skuAnunciado) {
@@ -227,11 +227,11 @@ function doPost(e) {
         var s = dadosAnuncios[m];
         var idAnuncioS         = s[0];
         var skuAnunciadoS      = s[1];
-        var qtdNoAnuncioS      = parseFloat(s[2]) || 1;
+        var qtdNoAnuncioS      = parseFloat(s[2]);
         var tipoMargemS        = s[3];
-        var margemCustomizadaS = parseFloat(s[4]) || 0;
-        var alqDestinoS        = parseFloat(s[5]) || 0;
-        var fecopDestinoS      = parseFloat(s[6]) || 0;
+        var margemCustomizadaS = parseFloat(s[4]);
+        var alqDestinoS        = parseFloat(s[5]);
+        var fecopDestinoS      = parseFloat(s[6]);
         var taxaCampanha       = (String(s[7]).trim().toUpperCase() === "SIM") ? 0.025 : 0;
 
         if (!skuAnunciadoS) {
