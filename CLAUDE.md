@@ -57,6 +57,40 @@ Container-bound script in Google Sheets. Files:
 3. ML redirects to backend `doGet` → backend exchanges code → stores result in `TEMP_TOKEN_{ssId}`
 4. Frontend polls `fetchToken` every 3s → on success, writes ML tokens + seller info to DocumentProperties
 
+## Reputation Mapping (Two-Layer Design)
+
+Seller reputation flows through two independent layers that must never be conflated.
+
+### Display layer — `doGet` in `gateway.js`
+
+Reads `power_seller_status` **and** `level_id` from `/users/me` at OAuth time. `power_seller_status` is evaluated first — a Líder Gold also has `5_green`, but should be identified by title, not color.
+
+| `power_seller_status` | `level_id` | Label stored in DocumentProperties |
+|---|---|---|
+| `'gold'` | — | `🏆 Líder Gold` |
+| `'platinum'` | — | `💎 Líder Platinum` |
+| (outro truthy) | — | `🏆 MercadoLíder` ← fallback para tiers futuros |
+| null | `'5_green'` | `🟢 Verde` |
+| null | `'4_light_green'` | `🟢 Verde Claro` |
+| null | `'3_yellow'` | `🟡 Amarela` |
+| null | `'2_orange'` | `🟠 Laranja` |
+| null | `'1_red'` | `🔴 Vermelha` |
+| null | null | `⚪ Cinza` |
+
+Label flows: `TEMP_TOKEN_` → `tentarCapturarToken` → `DocumentProperties.seller_reputation` → menu `ui-menu.js`. Nunca chega ao motor de preço.
+
+### Pricing layer — `normalizarReputacao` in `auth.js`
+
+Chamada a cada cálculo MLB (API call ao vivo). Retorna um dos três tiers de desconto de frete. As strings de exibição acima nunca entram aqui.
+
+| Condição | Retorno | Desconto de frete |
+|---|---|---|
+| `powerStatus` truthy, `5_green`, `4_light_green`, ou `null` | `'Verde'` | 30% sub-R$79 / 50% acima |
+| `3_yellow` | `'Amarela'` | 20% sub-R$79 / 40% acima |
+| `2_orange`, `1_red` | `'Sem Reputação'` | 0% — frete cheio |
+
+`4_light_green` e `null` (seller novo) são agrupados no tier Verde por política de fretes do ML.
+
 ## Core Pricing Formula
 
 ```
