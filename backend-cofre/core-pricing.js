@@ -284,8 +284,8 @@ function calcularPrecoMLB(blocoVirtual, config, taxaCategoriaML, forcarFreteRapi
 
   // --- 4. APLICAÇÃO DOS DESCONTOS AUDITADOS (VERDE VS AMARELA) ---
   var repFormatada = String(config.reputacao).trim().toUpperCase();
-  var isVerdeOuLider = (repFormatada === "VERDE" || repFormatada === "LÍDER" || repFormatada === "LIDER" || repFormatada === "CINZA");
-  var isAmarela = (repFormatada === "AMARELA");
+  var isVerdeOuLider = (repFormatada === "VERDE");
+  var isAmarela      = (repFormatada === "AMARELA");
 
   // --- 5. MOTOR DE BUSCA DO MELHOR PREÇO (O Loop de Tiers) ---
   var melhorPreco = 999999;

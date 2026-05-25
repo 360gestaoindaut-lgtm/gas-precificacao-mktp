@@ -56,10 +56,14 @@ function buscarReputacaoMercadoLivre(accessToken) {
 }
 
 function normalizarReputacao(levelId, powerStatus) {
-  // Seller novo (null) recebe os mesmos descontos de frete que Verde (30% sub-79, 50% acima-79)
+  // A tabela de fretes ML define 3 tiers de desconto — esta função mapeia level_id para eles:
+  //   Verde        (5_green, 4_light_green, null, MercadoLíder): 30% sub-R$79 / 50% acima
+  //   Amarela      (3_yellow)                                  : 20% sub-R$79 / 40% acima
+  //   Sem Reputação(2_orange, 1_red)                           : 0% — frete cheio
+  // 4_light_green e null (seller novo) recebem o mesmo tier de Verde por política do ML.
   if (powerStatus || levelId === '5_green' || levelId === '4_light_green' || !levelId) return 'Verde';
   if (levelId === '3_yellow') return 'Amarela';
-  return 'Sem Reputação'; // 1_red, 2_orange: sem desconto de frete
+  return 'Sem Reputação';
 }
 
 // Utilitário de manutenção: limpa todos os tokens e estados OAuth sem tocar nas credenciais.
