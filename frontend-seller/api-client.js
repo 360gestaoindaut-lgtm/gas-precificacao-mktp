@@ -1,7 +1,40 @@
-const COFRE_API_URL = "https://script.google.com/macros/s/AKfycbx4jdB_pz1b6sm6qei90SrcTHMgV3rPguphsw_OSrsZqz6FD2T83XSCPapNiywR35QnIQ/exec";
+const COFRE_API_URL    = "https://script.google.com/macros/s/AKfycbx4jdB_pz1b6sm6qei90SrcTHMgV3rPguphsw_OSrsZqz6FD2T83XSCPapNiywR35QnIQ/exec";
+const INTERNAL_API_KEY = 'sandbox-360';
 
 function acionarMotorMLB() { _orquestrarMotor("MLB"); }
 function acionarMotorSHP() { _orquestrarMotor("SHP"); }
+
+// --- Sandbox de Homologação ---
+function ativarSandboxLocal(tier, nomeVisual, emojiVisual) {
+  var ssId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  var res = UrlFetchApp.fetch(COFRE_API_URL, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify({ action: 'setMockEnv', spreadsheetId: ssId, reputacao: tier, apiKey: INTERNAL_API_KEY }),
+    muteHttpExceptions: true
+  });
+  if (JSON.parse(res.getContentText()).sucesso) {
+    PropertiesService.getDocumentProperties().setProperties({
+      access_token:      'MOCK_' + tier,
+      refresh_token:     'MOCK_REFRESH_TOKEN',
+      seller_name:       '🧪 LAB 360 (' + tier + ')',
+      seller_reputation: emojiVisual + ' ' + nomeVisual
+    });
+    SpreadsheetApp.getUi().alert(
+      'Modo Sandbox Ativo',
+      'Planilha MASTER configurada como ' + nomeVisual + '.\n\nO Menu e o Motor de Cálculo já estão operando sob este cenário simulado.',
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
+}
+
+function simularLiderGold()     { ativarSandboxLocal('Verde',          'Líder Gold',     '🏆'); }
+function simularLiderPlatinum() { ativarSandboxLocal('Verde',          'Líder Platinum', '💎'); }
+function simularVerde()         { ativarSandboxLocal('Verde',          'Verde',          '🟢'); }
+function simularVerdeClaro()    { ativarSandboxLocal('Verde',          'Verde Claro',    '🟢'); }
+function simularAmarela()       { ativarSandboxLocal('Amarela',        'Amarela',        '🟡'); }
+function simularLaranja()       { ativarSandboxLocal('Sem Reputação',  'Laranja',        '🟠'); }
+function simularVermelha()      { ativarSandboxLocal('Sem Reputação',  'Vermelha',       '🔴'); }
+function simularCinza()         { ativarSandboxLocal('Verde',          'Cinza',          '⚪'); }
 
 function solicitarVinculoML() {
   var ssId = SpreadsheetApp.getActiveSpreadsheet().getId();
