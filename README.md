@@ -56,12 +56,12 @@ base_PIS/COFINS = receita − IPI − ICMS_destaque − DIFAL   ← Tese do Séc
 
 ## Funcionalidades
 
-- **Motor MLB** — 8 faixas de preço × 29 faixas de peso; descontos de frete por reputação (Verde/Amarela/Vermelha); suporte a Frete Rápido forçado abaixo de R$ 79
+- **Motor MLB** — 8 faixas de preço × 29 faixas de peso; três tiers de desconto de frete por reputação (Verde 30%/50%, Amarela 20%/40%, Sem Reputação 0%); MercadoLíder, Verde Claro e seller novo (Cinza) são agrupados no tier Verde por política do ML; suporte a Frete Rápido forçado abaixo de R$ 79
 - **Motor Shopee** — solver de tiers com taxa fixa escalonável (regras Março/2026); suporte a campanhas (+2,5% de comissão)
 - **Kits compostos** — ponderação fiscal por custo + lucro-alvo por componente; três táticas de margem (`Do anúncio` / `Do kit` / `Do produto`)
 - **Regimes tributários** — Simples Nacional (com imunidade de DIFAL e segregação CSOSN), Lucro Presumido, Lucro Real (com crédito de PIS/COFINS sobre frete e comissões)
 - **Validador em cascata** — 3 níveis (anúncio → TGFPRO → TGFKIT); acumula todos os erros antes de retornar; bloqueia combinações inválidas
-- **OAuth 2.0 multi-tenant** — padrão Token Parking (sem biblioteca OAuth2, sem iframe); menu dinâmico com nome e reputação do seller
+- **OAuth 2.0 multi-tenant** — padrão Token Parking (sem biblioteca OAuth2, sem iframe); menu dinâmico com nome e reputação exata do seller (Líder Gold, Líder Platinum, MercadoLíder, Verde, Verde Claro, Amarela, Laranja, Vermelha, Cinza); camada de exibição independente da camada de cálculo
 - **Diretório central de tenants** — upsert automático na planilha `CLIENTES` a cada novo vínculo OAuth; sincronização passiva do regime tributário
 - **Staging NF-e** — rateio proporcional de preço e frete entre componentes de kits para geração de XML
 
