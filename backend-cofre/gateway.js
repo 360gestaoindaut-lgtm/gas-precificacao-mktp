@@ -96,6 +96,13 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (req.action === 'setMockEnv') {
+      var agora = Math.floor(Date.now() / 1000);
+      props.setProperty('ML_ACCESS_TOKEN_' + req.spreadsheetId, 'MOCK_' + req.reputacao);
+      props.setProperty('ML_EXPIRES_AT_'   + req.spreadsheetId, String(agora + 86400));
+      return ContentService.createTextOutput(JSON.stringify({ sucesso: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 1. Reconstituir db.produtos (ignora cabeçalho)
     var mapPro = {};
     for (var i = 1; i < req.dadosPro.length; i++) {
@@ -168,8 +175,12 @@ function doPost(e) {
           erro:    '403: Conta do Mercado Livre não conectada. Acesse "🔗 Conectar Mercado Livre" no menu da planilha.'
         })).setMimeType(ContentService.MimeType.JSON);
       }
-      var repInfo = buscarReputacaoMercadoLivre(accessToken);
-      db.config.reputacao = normalizarReputacao(repInfo.levelId, repInfo.powerStatus);
+      if (accessToken.indexOf('MOCK_') === 0) {
+        db.config.reputacao = accessToken.substring(5); // 'MOCK_Verde' → 'Verde'
+      } else {
+        var repInfo = buscarReputacaoMercadoLivre(accessToken);
+        db.config.reputacao = normalizarReputacao(repInfo.levelId, repInfo.powerStatus);
+      }
     }
 
     // 4a. Branch MLB
